@@ -1,0 +1,11 @@
+{
+  "full_name": "Hesham Hasanat",
+  "headline": "Senior Backend Engineer | Laravel | APIs | Scalable Systems",
+  "base_summary": "Senior backend engineer with strong experience building scalable Laravel systems, REST APIs, search-heavy platforms, and queue-based workflows.",
+  "years_experience": 10,
+  "preferred_roles": ["Senior Backend Engineer", "Senior Laravel Developer", "Backend API Engineer"],
+  "preferred_locations": ["Remote", "MENA", "Europe"],
+  "preferred_job_types": ["Full-time", "Contract", "Remote"],
+  "core_skills": ["PHP", "Laravel", "REST APIs", "PostgreSQL", "MySQL", "Redis", "OpenSearch", "Docker", "CI/CD", "AWS", "System Design"],
+  "nice_to_have_skills": ["Vue.js", "Pest", "PHPUnit", "Firebase", "AI Integrations"]
+}
