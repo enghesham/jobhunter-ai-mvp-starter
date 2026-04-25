@@ -13,25 +13,33 @@ class CandidateProfileController extends Controller
 {
     public function index(): JsonResponse
     {
-        $profiles = CandidateProfile::query()->latest()->paginate();
+        $profiles = CandidateProfile::query()
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->paginate();
 
         return ApiResponse::success(CandidateProfileResource::collection($profiles)->response()->getData(true));
     }
 
     public function store(UpsertCandidateProfileRequest $request): JsonResponse
     {
-        $profile = CandidateProfile::create($request->validated());
+        $profile = CandidateProfile::create([
+            ...$request->validated(),
+            'user_id' => auth()->id(),
+        ]);
 
         return ApiResponse::success(new CandidateProfileResource($profile), 201);
     }
 
     public function show(CandidateProfile $candidateProfile): JsonResponse
     {
+        $this->authorize('view', $candidateProfile);
         return ApiResponse::success(new CandidateProfileResource($candidateProfile));
     }
 
     public function update(UpsertCandidateProfileRequest $request, CandidateProfile $candidateProfile): JsonResponse
     {
+        $this->authorize('update', $candidateProfile);
         $candidateProfile->update($request->validated());
 
         return ApiResponse::success(new CandidateProfileResource($candidateProfile->fresh()));
@@ -39,6 +47,7 @@ class CandidateProfileController extends Controller
 
     public function destroy(CandidateProfile $candidateProfile): JsonResponse
     {
+        $this->authorize('delete', $candidateProfile);
         $candidateProfile->delete();
 
         return ApiResponse::success(['message' => 'Candidate profile deleted']);
@@ -49,8 +58,8 @@ class CandidateProfileController extends Controller
         $validated = $request->validated();
 
         $profile = CandidateProfile::updateOrCreate(
-            ['full_name' => $validated['full_name']],
-            $validated
+            ['full_name' => $validated['full_name'], 'user_id' => auth()->id()],
+            $validated + ['user_id' => auth()->id()]
         );
 
         return ApiResponse::success(new CandidateProfileResource($profile->fresh()));

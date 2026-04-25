@@ -2,6 +2,7 @@
 
 namespace App\Modules\Applications\Domain\Models;
 
+use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ class Application extends Model
 {
     protected $fillable = [
         'job_id',
+        'user_id',
         'profile_id',
         'tailored_resume_id',
         'status',
@@ -35,5 +37,10 @@ class Application extends Model
     public function profile(): BelongsTo
     {
         return $this->belongsTo(CandidateProfile::class, 'profile_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

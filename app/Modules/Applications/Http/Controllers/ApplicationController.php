@@ -15,25 +15,30 @@ class ApplicationController extends Controller
 {
     public function index(): JsonResponse
     {
-        $applications = Application::query()->latest()->paginate();
+        $applications = Application::query()
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->paginate();
 
         return ApiResponse::success(ApplicationResource::collection($applications)->response()->getData(true));
     }
 
     public function store(StoreApplicationRequest $request, ApplicationService $applicationService): JsonResponse
     {
-        $application = $applicationService->create($request->validated());
+        $application = $applicationService->create($request->validated() + ['user_id' => auth()->id()]);
 
         return ApiResponse::success(new ApplicationResource($application), 201);
     }
 
     public function show(Application $application): JsonResponse
     {
+        $this->authorize('view', $application);
         return ApiResponse::success(new ApplicationResource($application));
     }
 
     public function update(UpdateApplicationRequest $request, Application $application): JsonResponse
     {
+        $this->authorize('update', $application);
         $application->update($request->validated());
 
         return ApiResponse::success(new ApplicationResource($application->fresh()));

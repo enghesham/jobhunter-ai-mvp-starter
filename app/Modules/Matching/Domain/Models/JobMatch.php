@@ -2,6 +2,7 @@
 
 namespace App\Modules\Matching\Domain\Models;
 
+use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ class JobMatch extends Model
 {
     protected $fillable = [
         'job_id',
+        'user_id',
         'profile_id',
         'overall_score',
         'title_score',
@@ -36,5 +38,10 @@ class JobMatch extends Model
     public function profile(): BelongsTo
     {
         return $this->belongsTo(CandidateProfile::class, 'profile_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

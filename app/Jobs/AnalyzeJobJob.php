@@ -41,5 +41,7 @@ class AnalyzeJobJob implements ShouldQueue
                 'analyzed_at' => now(),
             ]
         );
+
+        $job->forceFill(['status' => 'analyzed'])->save();
     }
 }

@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateExperience;
 use App\Modules\Candidate\Domain\Models\CandidateProject;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ResumeGenerationTest extends TestCase
@@ -13,6 +15,8 @@ class ResumeGenerationTest extends TestCase
 
     public function test_it_generates_a_tailored_resume_draft_for_a_matched_job(): void
     {
+        Sanctum::actingAs(User::factory()->create());
+
         $sourceId = $this->postJson('/api/jobhunter/job-sources', [
             'name' => 'Resume Source',
             'type' => 'custom',

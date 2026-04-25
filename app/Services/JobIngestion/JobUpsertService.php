@@ -24,6 +24,7 @@ class JobUpsertService
 
         $values = [
             'external_id' => $data->externalId,
+            'user_id' => $source->user_id,
             'company_name' => $data->companyName,
             'title' => $data->title,
             'location' => $data->location,

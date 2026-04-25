@@ -2,6 +2,7 @@
 
 namespace App\Modules\Jobs\Domain\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ class Job extends Model
 {
     protected $fillable = [
         'external_id',
+        'user_id',
         'source_id',
         'company_name',
         'title',
@@ -38,6 +40,11 @@ class Job extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(JobSource::class, 'source_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function analysis(): HasOne

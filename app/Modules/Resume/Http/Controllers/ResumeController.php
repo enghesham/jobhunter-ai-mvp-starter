@@ -16,6 +16,7 @@ class ResumeController extends Controller
 {
     public function generate(GenerateResumeRequest $request, Job $job, ResumeGenerationService $resumeGenerationService): JsonResponse
     {
+        $this->authorize('view', $job);
         try {
             $profileId = (int) ($request->validated()['profile_id'] ?? 1);
             $versionName = (string) ($request->validated()['version_name'] ?? 'v1');
@@ -24,6 +25,8 @@ class ResumeController extends Controller
             if (! $profile) {
                 return ApiResponse::error('Candidate profile not found.', 404);
             }
+
+            $this->authorize('view', $profile);
 
             $resume = $resumeGenerationService->generate($job, $profile, $versionName);
         } catch (Throwable $exception) {

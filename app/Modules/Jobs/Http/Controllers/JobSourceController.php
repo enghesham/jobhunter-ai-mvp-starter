@@ -20,25 +20,34 @@ class JobSourceController extends Controller
 {
     public function index(): JsonResponse
     {
-        $sources = JobSource::withCount('jobs')->latest()->paginate();
+        $sources = JobSource::query()
+            ->where('user_id', auth()->id())
+            ->withCount('jobs')
+            ->latest()
+            ->paginate();
 
         return ApiResponse::success(JobSourceResource::collection($sources)->response()->getData(true));
     }
 
     public function store(StoreJobSourceRequest $request): JsonResponse
     {
-        $source = JobSource::create($request->validated());
+        $source = JobSource::create([
+            ...$request->validated(),
+            'user_id' => auth()->id(),
+        ]);
 
         return ApiResponse::success(new JobSourceResource($source), 201);
     }
 
     public function show(JobSource $jobSource): JsonResponse
     {
+        $this->authorize('view', $jobSource);
         return ApiResponse::success(new JobSourceResource($jobSource->loadCount('jobs')));
     }
 
     public function update(StoreJobSourceRequest $request, JobSource $jobSource): JsonResponse
     {
+        $this->authorize('update', $jobSource);
         $jobSource->update($request->validated());
 
         return ApiResponse::success(new JobSourceResource($jobSource->fresh()));
@@ -46,6 +55,7 @@ class JobSourceController extends Controller
 
     public function destroy(JobSource $jobSource): JsonResponse
     {
+        $this->authorize('delete', $jobSource);
         $jobSource->delete();
 
         return ApiResponse::success(['message' => 'Job source deleted']);
@@ -53,6 +63,7 @@ class JobSourceController extends Controller
 
     public function scan(ScanJobSourceRequest $request, JobSource $jobSource, JobSourceScanService $scanner): JsonResponse
     {
+        $this->authorize('view', $jobSource);
         try {
             if ($request->boolean('sync')) {
                 return ApiResponse::success([
@@ -74,6 +85,7 @@ class JobSourceController extends Controller
 
     public function ingest(ManualJobIngestionRequest $request, JobSource $jobSource, ManualJobIngestionService $ingestionService): JsonResponse
     {
+        $this->authorize('update', $jobSource);
         $validated = $request->validated();
         $result = $ingestionService->ingest($jobSource, $validated['jobs']);
 

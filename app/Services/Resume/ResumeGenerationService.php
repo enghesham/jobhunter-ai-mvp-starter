@@ -57,6 +57,7 @@ class ResumeGenerationService
 
         return TailoredResume::create([
             'job_id' => $job->id,
+            'user_id' => $profile->user_id ?: $job->user_id,
             'profile_id' => $profile->id,
             'version_name' => $versionName,
             'headline_text' => $headline,

@@ -17,6 +17,7 @@ class JobController extends Controller
     public function index(): JsonResponse
     {
         $jobs = Job::query()
+            ->where('user_id', auth()->id())
             ->with(['analysis', 'source'])
             ->latest('posted_at')
             ->paginate();
@@ -26,11 +27,13 @@ class JobController extends Controller
 
     public function show(Job $job): JsonResponse
     {
+        $this->authorize('view', $job);
         return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches')));
     }
 
     public function analyze(Job $job): JsonResponse
     {
+        $this->authorize('view', $job);
         try {
             AnalyzeJobJob::dispatchSync($job->id);
         } catch (Throwable $exception) {
@@ -42,6 +45,7 @@ class JobController extends Controller
 
     public function match(MatchJobRequest $request, Job $job): JsonResponse
     {
+        $this->authorize('view', $job);
         try {
             $validated = $request->validated();
             $profileId = (int) ($validated['profile_id'] ?? 1);

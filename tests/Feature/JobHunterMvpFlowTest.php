@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class JobHunterMvpFlowTest extends TestCase
@@ -11,6 +13,8 @@ class JobHunterMvpFlowTest extends TestCase
 
     public function test_happy_path_from_source_to_application(): void
     {
+        Sanctum::actingAs(User::factory()->create());
+
         $sourceResponse = $this->postJson('/api/job-sources', [
             'name' => 'Manual Import Source',
             'type' => 'custom',

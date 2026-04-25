@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AnswerTemplate extends Model
 {
     protected $fillable = [
-        'key', 'title', 'base_answer', 'tags'
+        'user_id', 'key', 'title', 'base_answer', 'tags'
     ];
 
     protected $casts = [

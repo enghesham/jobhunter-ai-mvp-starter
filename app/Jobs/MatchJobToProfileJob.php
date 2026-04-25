@@ -34,6 +34,7 @@ class MatchJobToProfileJob implements ShouldQueue
         JobMatch::updateOrCreate(
             ['job_id' => $job->id, 'profile_id' => $profile->id],
             [
+                'user_id' => $profile->user_id ?: $job->user_id,
                 'overall_score' => $score['overall_score'],
                 'title_score' => $score['title_score'],
                 'skill_score' => $score['skill_score'],
@@ -46,5 +47,7 @@ class MatchJobToProfileJob implements ShouldQueue
                 'matched_at' => now(),
             ]
         );
+
+        $job->forceFill(['status' => 'matched'])->save();
     }
 }
