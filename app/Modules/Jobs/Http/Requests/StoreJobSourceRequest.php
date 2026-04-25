@@ -15,7 +15,7 @@ class StoreJobSourceRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'in:greenhouse,lever,ashby,custom'],
+            'type' => ['required', 'string', 'in:'.implode(',', config('jobhunter.allowed_sources', ['custom', 'greenhouse', 'lever']))],
             'url' => ['required', 'url', 'max:2048'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],

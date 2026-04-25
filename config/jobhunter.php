@@ -1,11 +1,16 @@
 <?php
 
 return [
+    'ai_provider' => env('JOBHUNTER_AI_PROVIDER', 'null'),
     'scan_hours' => env('JOBHUNTER_SCAN_HOURS', 6),
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
-    'llm' => [
-        'provider' => env('JOBHUNTER_LLM_PROVIDER', 'openai'),
-        'model' => env('JOBHUNTER_LLM_MODEL', 'gpt-4.1-mini'),
+    'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
+    'pdf_driver' => env('JOBHUNTER_PDF_DRIVER', 'html'),
+    'openai' => [
+        'model' => env('JOBHUNTER_OPENAI_MODEL', 'gpt-4.1-mini'),
+    ],
+    'bedrock' => [
+        'model' => env('JOBHUNTER_BEDROCK_MODEL', 'anthropic.claude-3-5-sonnet'),
     ],
     'prompts' => [
         'job_analysis' => <<<'PROMPT'
