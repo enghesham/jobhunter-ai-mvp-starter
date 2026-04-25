@@ -4,49 +4,38 @@ namespace App\Modules\Applications\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Applications\Domain\Models\Application;
+use App\Modules\Applications\Http\Requests\StoreApplicationRequest;
+use App\Modules\Applications\Http\Requests\UpdateApplicationRequest;
+use App\Modules\Applications\Http\Resources\ApplicationResource;
+use App\Services\Applications\ApplicationService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ApplicationController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(Application::latest()->paginate());
+        $applications = Application::query()->latest()->paginate();
+
+        return ApiResponse::success(ApplicationResource::collection($applications)->response()->getData(true));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreApplicationRequest $request, ApplicationService $applicationService): JsonResponse
     {
-        $application = Application::create($request->validate([
-            'job_id' => ['required', 'integer'],
-            'profile_id' => ['required', 'integer'],
-            'tailored_resume_id' => ['nullable', 'integer'],
-            'status' => ['required', 'string'],
-            'applied_at' => ['nullable', 'date'],
-            'follow_up_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'company_response' => ['nullable', 'string'],
-            'interview_date' => ['nullable', 'date'],
-        ]));
+        $application = $applicationService->create($request->validated());
 
-        return response()->json($application, 201);
+        return ApiResponse::success(new ApplicationResource($application), 201);
     }
 
     public function show(Application $application): JsonResponse
     {
-        return response()->json($application);
+        return ApiResponse::success(new ApplicationResource($application));
     }
 
-    public function update(Request $request, Application $application): JsonResponse
+    public function update(UpdateApplicationRequest $request, Application $application): JsonResponse
     {
-        $application->update($request->validate([
-            'status' => ['sometimes', 'string'],
-            'applied_at' => ['nullable', 'date'],
-            'follow_up_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'company_response' => ['nullable', 'string'],
-            'interview_date' => ['nullable', 'date'],
-        ]));
+        $application->update($request->validated());
 
-        return response()->json($application->fresh());
+        return ApiResponse::success(new ApplicationResource($application->fresh()));
     }
 }

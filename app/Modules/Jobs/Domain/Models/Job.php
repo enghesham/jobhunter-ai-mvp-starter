@@ -16,11 +16,13 @@ class Job extends Model
         'company_name',
         'title',
         'location',
+        'is_remote',
         'remote_type',
         'employment_type',
         'description_raw',
         'description_clean',
         'apply_url',
+        'raw_payload',
         'salary_text',
         'posted_at',
         'hash',
@@ -28,6 +30,8 @@ class Job extends Model
     ];
 
     protected $casts = [
+        'is_remote' => 'boolean',
+        'raw_payload' => 'array',
         'posted_at' => 'datetime',
     ];
 

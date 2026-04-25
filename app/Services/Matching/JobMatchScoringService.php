@@ -134,10 +134,10 @@ class JobMatchScoringService
     private function recommendation(int $overall): string
     {
         return match (true) {
-            $overall >= 85 => 'strong_apply',
-            $overall >= 70 => 'apply',
-            $overall >= 55 => 'maybe',
-            default => 'skip',
+            $overall >= 85 => 'strong_match',
+            $overall >= 70 => 'good_match',
+            $overall >= 55 => 'weak_match',
+            default => 'not_recommended',
         };
     }
 }

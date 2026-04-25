@@ -52,10 +52,12 @@ class GreenhouseJobSourceFetcher implements JobSourceFetcherInterface
             companyName: $source->company_name ?: $source->name,
             title: trim((string) Arr::get($payload, 'title', '')),
             location: is_string($location) ? $location : null,
+            isRemote: $this->detectRemoteType((string) ($location ?? '')) === 'remote',
             remoteType: $this->detectRemoteType((string) ($location ?? '')),
             employmentType: null,
             descriptionRaw: (string) Arr::get($payload, 'content', ''),
             applyUrl: Arr::get($payload, 'absolute_url'),
+            rawPayload: $payload,
             salaryText: null,
             postedAt: $this->parseDate(Arr::get($payload, 'updated_at')),
         );

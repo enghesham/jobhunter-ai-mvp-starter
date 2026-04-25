@@ -16,10 +16,32 @@ class StoreJobSourceRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:greenhouse,lever,ashby,custom'],
-            'base_url' => ['required', 'url', 'max:2048'],
+            'url' => ['required', 'url', 'max:2048'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],
-            'meta' => ['nullable', 'array'],
+            'config' => ['nullable', 'array'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'url' => $this->input('url', $this->input('base_url')),
+            'config' => $this->input('config', $this->input('meta')),
+        ]);
+    }
+
+    public function validated($key = null, $default = null): mixed
+    {
+        $validated = parent::validated();
+        $validated['base_url'] = $validated['url'];
+        $validated['meta'] = $validated['config'] ?? null;
+        unset($validated['url'], $validated['config']);
+
+        if ($key !== null) {
+            return data_get($validated, $key, $default);
+        }
+
+        return $validated;
     }
 }

@@ -5,10 +5,13 @@ namespace App\Modules\Jobs\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScanJobSourceJob;
 use App\Modules\Jobs\Domain\Models\JobSource;
+use App\Modules\Jobs\Http\Requests\ManualJobIngestionRequest;
 use App\Modules\Jobs\Http\Requests\ScanJobSourceRequest;
 use App\Modules\Jobs\Http\Requests\StoreJobSourceRequest;
+use App\Modules\Jobs\Http\Resources\JobResource;
 use App\Modules\Jobs\Http\Resources\JobSourceResource;
 use App\Services\JobIngestion\JobSourceScanService;
+use App\Services\JobIngestion\ManualJobIngestionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Throwable;
@@ -67,5 +70,19 @@ class JobSourceController extends Controller
             'message' => 'Scan queued successfully',
             'job_source_id' => $jobSource->id,
         ], 202);
+    }
+
+    public function ingest(ManualJobIngestionRequest $request, JobSource $jobSource, ManualJobIngestionService $ingestionService): JsonResponse
+    {
+        $validated = $request->validated();
+        $result = $ingestionService->ingest($jobSource, $validated['jobs']);
+
+        return ApiResponse::success([
+            'source_id' => $jobSource->id,
+            'created' => $result['created'],
+            'updated' => $result['updated'],
+            'skipped' => $result['skipped'],
+            'jobs' => JobResource::collection(collect($result['jobs']))->resolve(),
+        ], 201);
     }
 }

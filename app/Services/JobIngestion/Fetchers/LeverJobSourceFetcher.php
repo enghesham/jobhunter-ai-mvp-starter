@@ -55,10 +55,12 @@ class LeverJobSourceFetcher implements JobSourceFetcherInterface
             companyName: $source->company_name ?: $source->name,
             title: trim((string) Arr::get($payload, 'text', '')),
             location: is_string($location) ? $location : null,
+            isRemote: $this->detectRemoteType((string) ($location ?? '')) === 'remote',
             remoteType: $this->detectRemoteType((string) ($location ?? '')),
             employmentType: is_string($commitment) ? $commitment : null,
             descriptionRaw: $this->description($payload, is_string($team) ? $team : null),
             applyUrl: Arr::get($payload, 'hostedUrl') ?: Arr::get($payload, 'applyUrl'),
+            rawPayload: $payload,
             salaryText: null,
             postedAt: $this->parseDate(Arr::get($payload, 'createdAt')),
         );

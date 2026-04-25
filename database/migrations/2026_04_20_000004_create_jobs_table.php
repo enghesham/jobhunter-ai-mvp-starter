@@ -14,11 +14,13 @@ return new class extends Migration {
             $table->string('company_name');
             $table->string('title');
             $table->string('location')->nullable();
+            $table->boolean('is_remote')->default(false);
             $table->string('remote_type')->nullable();
             $table->string('employment_type')->nullable();
             $table->longText('description_raw')->nullable();
             $table->longText('description_clean')->nullable();
             $table->string('apply_url', 2048)->nullable();
+            $table->json('raw_payload')->nullable();
             $table->string('salary_text')->nullable();
             $table->timestamp('posted_at')->nullable();
             $table->string('hash')->unique();
@@ -27,6 +29,7 @@ return new class extends Migration {
 
             $table->unique(['source_id', 'external_id']);
             $table->index(['company_name', 'title']);
+            $table->index(['apply_url']);
             $table->index(['posted_at']);
         });
     }

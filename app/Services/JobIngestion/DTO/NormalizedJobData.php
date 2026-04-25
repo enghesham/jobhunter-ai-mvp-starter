@@ -11,10 +11,12 @@ readonly class NormalizedJobData
         public string $companyName,
         public string $title,
         public ?string $location,
+        public bool $isRemote,
         public ?string $remoteType,
         public ?string $employmentType,
         public ?string $descriptionRaw,
         public ?string $applyUrl,
+        public ?array $rawPayload = null,
         public ?string $salaryText = null,
         public ?CarbonImmutable $postedAt = null,
     ) {

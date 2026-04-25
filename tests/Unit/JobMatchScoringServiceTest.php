@@ -36,6 +36,6 @@ class JobMatchScoringServiceTest extends TestCase
         $score = (new JobMatchScoringService())->score($profile, $job);
 
         $this->assertGreaterThanOrEqual(85, $score['overall_score']);
-        $this->assertSame('strong_apply', $score['recommendation']);
+        $this->assertSame('strong_match', $score['recommendation']);
     }
 }

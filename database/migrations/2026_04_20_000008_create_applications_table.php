@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('job_id')->constrained('jobs')->cascadeOnDelete();
             $table->foreignId('profile_id')->constrained('candidate_profiles')->cascadeOnDelete();
             $table->foreignId('tailored_resume_id')->nullable()->constrained('tailored_resumes')->nullOnDelete();
-            $table->string('status')->default('new');
+            $table->string('status')->default('draft');
             $table->timestamp('applied_at')->nullable();
             $table->date('follow_up_date')->nullable();
             $table->text('notes')->nullable();

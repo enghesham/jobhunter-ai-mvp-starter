@@ -2,7 +2,10 @@
 
 namespace App\Modules\Applications\Domain\Models;
 
+use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Jobs\Domain\Models\Job;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Application extends Model
 {
@@ -23,4 +26,14 @@ class Application extends Model
         'follow_up_date' => 'date',
         'interview_date' => 'datetime',
     ];
+
+    public function job(): BelongsTo
+    {
+        return $this->belongsTo(Job::class);
+    }
+
+    public function profile(): BelongsTo
+    {
+        return $this->belongsTo(CandidateProfile::class, 'profile_id');
+    }
 }

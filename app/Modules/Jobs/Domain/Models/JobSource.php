@@ -20,4 +20,14 @@ class JobSource extends Model
     {
         return $this->hasMany(Job::class, 'source_id');
     }
+
+    public function getUrlAttribute(): ?string
+    {
+        return $this->base_url;
+    }
+
+    public function getConfigAttribute(): ?array
+    {
+        return $this->meta;
+    }
 }
