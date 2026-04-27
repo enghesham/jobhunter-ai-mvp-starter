@@ -23,6 +23,20 @@ class CandidateProfileResource extends JsonResource
             'linkedin_url' => $this->linkedin_url,
             'github_url' => $this->github_url,
             'portfolio_url' => $this->portfolio_url,
+            'experiences' => $this->whenLoaded('experiences', fn () => $this->experiences->map(fn ($experience) => [
+                'id' => $experience->id,
+                'company' => $experience->company,
+                'title' => $experience->title,
+                'start_date' => $experience->start_date?->toDateString(),
+                'end_date' => $experience->end_date?->toDateString(),
+                'description' => $experience->description,
+            ])->values()->all(), []),
+            'projects' => $this->whenLoaded('projects', fn () => $this->projects->map(fn ($project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'description' => $project->description,
+                'skills' => $project->tech_stack ?? [],
+            ])->values()->all(), []),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

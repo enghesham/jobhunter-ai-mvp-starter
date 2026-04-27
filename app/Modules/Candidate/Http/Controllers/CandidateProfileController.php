@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Candidate\Http\Requests\UpsertCandidateProfileRequest;
 use App\Modules\Candidate\Http\Resources\CandidateProfileResource;
+use App\Services\Candidate\CandidateProfilePersistenceService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
@@ -15,15 +16,16 @@ class CandidateProfileController extends Controller
     {
         $profiles = CandidateProfile::query()
             ->where('user_id', auth()->id())
+            ->with(['experiences', 'projects'])
             ->latest()
             ->paginate();
 
         return ApiResponse::success(CandidateProfileResource::collection($profiles)->response()->getData(true));
     }
 
-    public function store(UpsertCandidateProfileRequest $request): JsonResponse
+    public function store(UpsertCandidateProfileRequest $request, CandidateProfilePersistenceService $persistenceService): JsonResponse
     {
-        $profile = CandidateProfile::create([
+        $profile = $persistenceService->create([
             ...$request->validated(),
             'user_id' => auth()->id(),
         ]);
@@ -34,15 +36,15 @@ class CandidateProfileController extends Controller
     public function show(CandidateProfile $candidateProfile): JsonResponse
     {
         $this->authorize('view', $candidateProfile);
-        return ApiResponse::success(new CandidateProfileResource($candidateProfile));
+        return ApiResponse::success(new CandidateProfileResource($candidateProfile->load(['experiences', 'projects'])));
     }
 
-    public function update(UpsertCandidateProfileRequest $request, CandidateProfile $candidateProfile): JsonResponse
+    public function update(UpsertCandidateProfileRequest $request, CandidateProfile $candidateProfile, CandidateProfilePersistenceService $persistenceService): JsonResponse
     {
         $this->authorize('update', $candidateProfile);
-        $candidateProfile->update($request->validated());
+        $profile = $persistenceService->update($candidateProfile, $request->validated());
 
-        return ApiResponse::success(new CandidateProfileResource($candidateProfile->fresh()));
+        return ApiResponse::success(new CandidateProfileResource($profile));
     }
 
     public function destroy(CandidateProfile $candidateProfile): JsonResponse
@@ -53,15 +55,10 @@ class CandidateProfileController extends Controller
         return ApiResponse::success(['message' => 'Candidate profile deleted']);
     }
 
-    public function import(UpsertCandidateProfileRequest $request): JsonResponse
+    public function import(UpsertCandidateProfileRequest $request, CandidateProfilePersistenceService $persistenceService): JsonResponse
     {
-        $validated = $request->validated();
+        $profile = $persistenceService->import((int) auth()->id(), $request->validated());
 
-        $profile = CandidateProfile::updateOrCreate(
-            ['full_name' => $validated['full_name'], 'user_id' => auth()->id()],
-            $validated + ['user_id' => auth()->id()]
-        );
-
-        return ApiResponse::success(new CandidateProfileResource($profile->fresh()));
+        return ApiResponse::success(new CandidateProfileResource($profile));
     }
 }

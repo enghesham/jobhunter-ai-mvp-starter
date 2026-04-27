@@ -15,8 +15,8 @@ class UpsertCandidateProfileRequest extends FormRequest
     {
         return [
             'full_name' => ['required', 'string', 'max:255'],
-            'headline' => ['nullable', 'string', 'max:255'],
-            'base_summary' => ['nullable', 'string'],
+            'headline' => ['required', 'string', 'max:255'],
+            'base_summary' => ['required', 'string'],
             'years_experience' => ['required', 'integer', 'min:0', 'max:60'],
             'preferred_roles' => ['nullable', 'array'],
             'preferred_roles.*' => ['string', 'max:255'],
@@ -32,6 +32,17 @@ class UpsertCandidateProfileRequest extends FormRequest
             'linkedin_url' => ['nullable', 'url', 'max:2048'],
             'github_url' => ['nullable', 'url', 'max:2048'],
             'portfolio_url' => ['nullable', 'url', 'max:2048'],
+            'experiences' => ['nullable', 'array'],
+            'experiences.*.company' => ['required', 'string', 'max:255'],
+            'experiences.*.title' => ['required', 'string', 'max:255'],
+            'experiences.*.start_date' => ['nullable', 'date'],
+            'experiences.*.end_date' => ['nullable', 'date'],
+            'experiences.*.description' => ['required', 'string'],
+            'projects' => ['nullable', 'array'],
+            'projects.*.name' => ['required', 'string', 'max:255'],
+            'projects.*.description' => ['required', 'string'],
+            'projects.*.skills' => ['nullable', 'array'],
+            'projects.*.skills.*' => ['string', 'max:255'],
         ];
     }
 }

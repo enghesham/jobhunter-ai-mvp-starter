@@ -1,4 +1,5 @@
 import type { JobSource } from '@/modules/job-sources/types'
+import type { CandidateProfile } from '@/modules/candidate-profile/types'
 
 export interface JobAnalysis {
   required_skills?: string[]
@@ -64,17 +65,4 @@ export interface Job {
   matches?: JobMatch[]
   created_at?: string | null
   updated_at?: string | null
-}
-
-export interface CandidateProfile {
-  id: number
-  full_name?: string | null
-  headline?: string | null
-  base_summary?: string | null
-  years_experience?: number | string | null
-  preferred_roles?: string[]
-  preferred_locations?: string[]
-  preferred_job_types?: string[]
-  core_skills?: string[]
-  nice_to_have_skills?: string[]
 }
