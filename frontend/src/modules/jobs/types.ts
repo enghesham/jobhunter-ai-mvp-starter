@@ -15,6 +15,7 @@ export interface JobMatch {
   id: number
   job_id?: number
   profile_id?: number
+  candidate_profile_id?: number
   overall_score?: number | null
   title_score?: number | null
   skill_score?: number | null
@@ -24,13 +25,27 @@ export interface JobMatch {
   domain_score?: number | null
   recommendation?: string | null
   notes?: string | null
+  job?: {
+    id?: number
+    title?: string | null
+    company_name?: string | null
+    url?: string | null
+  } | null
+  candidate_profile?: {
+    id?: number
+    full_name?: string | null
+    headline?: string | null
+  } | null
   matched_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export interface TailoredResume {
   id: number
   job_id: number
   profile_id: number
+  candidate_profile_id?: number
   version_name?: string | null
   headline?: string | null
   professional_summary?: string | null
@@ -40,6 +55,19 @@ export interface TailoredResume {
   ats_keywords?: string[]
   html_path?: string | null
   pdf_path?: string | null
+  html_url?: string | null
+  pdf_url?: string | null
+  job?: {
+    id?: number
+    title?: string | null
+    company_name?: string | null
+    url?: string | null
+  } | null
+  candidate_profile?: {
+    id?: number
+    full_name?: string | null
+    headline?: string | null
+  } | null
   created_at?: string | null
   updated_at?: string | null
 }

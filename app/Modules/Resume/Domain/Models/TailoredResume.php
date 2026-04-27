@@ -3,6 +3,8 @@
 namespace App\Modules\Resume\Domain\Models;
 
 use App\Models\User;
+use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Jobs\Domain\Models\Job;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -30,6 +32,16 @@ class TailoredResume extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function job(): BelongsTo
+    {
+        return $this->belongsTo(Job::class);
+    }
+
+    public function profile(): BelongsTo
+    {
+        return $this->belongsTo(CandidateProfile::class, 'profile_id');
     }
 
     public function getSelectedSkillsAttribute(): array

@@ -5,6 +5,7 @@ namespace App\Modules\Resume\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
+use App\Modules\Resume\Domain\Models\TailoredResume;
 use App\Modules\Resume\Http\Requests\GenerateResumeRequest;
 use App\Modules\Resume\Http\Resources\TailoredResumeResource;
 use App\Services\Resume\ResumeGenerationService;
@@ -14,6 +15,17 @@ use Throwable;
 
 class ResumeController extends Controller
 {
+    public function index(): JsonResponse
+    {
+        $resumes = TailoredResume::query()
+            ->where('user_id', auth()->id())
+            ->with(['job', 'profile'])
+            ->latest()
+            ->paginate();
+
+        return ApiResponse::success(TailoredResumeResource::collection($resumes)->response()->getData(true));
+    }
+
     public function generate(GenerateResumeRequest $request, Job $job, ResumeGenerationService $resumeGenerationService): JsonResponse
     {
         $this->authorize('view', $job);

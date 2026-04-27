@@ -79,10 +79,38 @@ class JobHunterMvpFlowTest extends TestCase
 
         $matchId = $matchResponse->json('data.matches.0.id');
 
+        $matchesListResponse = $this->getJson('/api/jobhunter/matches');
+
+        $matchesListResponse->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.data.0.id', $matchId)
+            ->assertJsonPath('data.data.0.job_id', $jobId)
+            ->assertJsonPath('data.data.0.candidate_profile.id', $profileId);
+
+        $resumeResponse = $this->postJson("/api/jobhunter/jobs/{$jobId}/generate-resume", [
+            'profile_id' => $profileId,
+        ]);
+
+        $resumeResponse->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.job_id', $jobId)
+            ->assertJsonPath('data.profile_id', $profileId);
+
+        $resumeId = $resumeResponse->json('data.id');
+
+        $resumesListResponse = $this->getJson('/api/jobhunter/resumes');
+
+        $resumesListResponse->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.data.0.id', $resumeId)
+            ->assertJsonPath('data.data.0.job.id', $jobId)
+            ->assertJsonPath('data.data.0.candidate_profile.id', $profileId);
+
         $applicationResponse = $this->postJson('/api/applications', [
             'job_id' => $jobId,
             'profile_id' => $profileId,
             'job_match_id' => $matchId,
+            'tailored_resume_id' => $resumeId,
             'status' => 'ready_to_apply',
             'notes' => 'Prepared from MVP happy path test.',
         ]);

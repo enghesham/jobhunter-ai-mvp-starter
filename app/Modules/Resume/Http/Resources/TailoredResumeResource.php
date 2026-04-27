@@ -13,6 +13,7 @@ class TailoredResumeResource extends JsonResource
             'id' => $this->id,
             'job_id' => $this->job_id,
             'profile_id' => $this->profile_id,
+            'candidate_profile_id' => $this->profile_id,
             'version_name' => $this->version_name,
             'headline' => $this->headline_text,
             'professional_summary' => $this->summary_text,
@@ -22,6 +23,19 @@ class TailoredResumeResource extends JsonResource
             'ats_keywords' => $this->ats_keywords ?? [],
             'html_path' => $this->html_path,
             'pdf_path' => $this->pdf_path,
+            'html_url' => $this->html_path ? url('/storage/'.$this->html_path) : null,
+            'pdf_url' => $this->pdf_path ? url('/storage/'.$this->pdf_path) : null,
+            'job' => $this->whenLoaded('job', fn () => [
+                'id' => $this->job?->id,
+                'title' => $this->job?->title,
+                'company_name' => $this->job?->company_name,
+                'url' => $this->job?->apply_url,
+            ]),
+            'candidate_profile' => $this->whenLoaded('profile', fn () => [
+                'id' => $this->profile?->id,
+                'full_name' => $this->profile?->full_name,
+                'headline' => $this->profile?->headline,
+            ]),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

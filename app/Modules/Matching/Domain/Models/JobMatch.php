@@ -30,14 +30,14 @@ class JobMatch extends Model
         'matched_at' => 'datetime',
     ];
 
-    public function job(): BelongsTo
-    {
-        return $this->belongsTo(Job::class);
-    }
-
     public function profile(): BelongsTo
     {
         return $this->belongsTo(CandidateProfile::class, 'profile_id');
+    }
+
+    public function job(): BelongsTo
+    {
+        return $this->belongsTo(Job::class);
     }
 
     public function user(): BelongsTo
