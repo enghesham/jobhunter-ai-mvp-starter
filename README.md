@@ -2,6 +2,22 @@
 
 Laravel-based backend for collecting jobs, analyzing them, matching them to a candidate profile, generating tailored resume drafts, and tracking applications.
 
+## Frontend Setup
+The repository now includes a separate Vue 3 frontend app in [frontend](C:/wamp64/www/jobhunter-ai-mvp-starter/frontend).
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Default frontend API base URL:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+```
+
 ## Implemented Modules
 - Authentication with Laravel Sanctum
 - Job sources
