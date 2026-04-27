@@ -1,9 +1,7 @@
 import axios, { type AxiosInstance } from 'axios'
 
 import router from '@/app/router'
-import { useAuthStore } from '@/app/stores/auth'
-
-const TOKEN_KEY = 'jobhunter_access_token'
+import { storageKeys } from '@/shared/utils/storage'
 
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -14,8 +12,7 @@ const api: AxiosInstance = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const authStore = useAuthStore()
-  const token = authStore.token || localStorage.getItem(TOKEN_KEY)
+  const token = localStorage.getItem(storageKeys.authToken)
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -28,11 +25,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      const authStore = useAuthStore()
-      authStore.clearAuth()
+      localStorage.removeItem(storageKeys.authToken)
+      window.dispatchEvent(new CustomEvent('jobhunter:unauthorized'))
 
       if (router.currentRoute.value.path !== '/login') {
-        await router.push('/login')
+        await router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
       }
     }
 

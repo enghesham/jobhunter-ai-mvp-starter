@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/app/stores/authStore'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -7,9 +8,9 @@ import CandidateProfilePage from '@/modules/candidate-profile/CandidateProfilePa
 import DashboardPage from '@/modules/dashboard/DashboardPage.vue'
 import JobsPage from '@/modules/jobs/JobsPage.vue'
 import JobSourcesPage from '@/modules/job-sources/JobSourcesPage.vue'
-import LoginPage from '@/modules/auth/LoginPage.vue'
+import LoginPage from '@/modules/auth/pages/LoginPage.vue'
 import MatchesPage from '@/modules/matches/MatchesPage.vue'
-import RegisterPage from '@/modules/auth/RegisterPage.vue'
+import RegisterPage from '@/modules/auth/pages/RegisterPage.vue'
 import ResumesPage from '@/modules/resumes/ResumesPage.vue'
 import SettingsPage from '@/modules/settings/SettingsPage.vue'
 
@@ -19,6 +20,7 @@ const router = createRouter({
     {
       path: '/',
       component: AppLayout,
+      meta: { requiresAuth: true },
       children: [
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard' } },
@@ -35,11 +37,37 @@ const router = createRouter({
       path: '/',
       component: AuthLayout,
       children: [
-        { path: 'login', component: LoginPage, meta: { title: 'Login' } },
-        { path: 'register', component: RegisterPage, meta: { title: 'Register' } },
+        { path: 'login', component: LoginPage, meta: { title: 'Login', guestOnly: true } },
+        { path: 'register', component: RegisterPage, meta: { title: 'Register', guestOnly: true } },
       ],
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore()
+
+  if (!authStore.initialized) {
+    await authStore.restoreSession()
+  }
+
+  if (to.meta.guestOnly && authStore.isAuthenticated) {
+    return { path: '/dashboard' }
+  }
+
+  if (to.meta.requiresAuth && !authStore.token) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAuth && authStore.token && !authStore.isAuthenticated) {
+    const user = await authStore.fetchMe()
+
+    if (!user) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  return true
 })
 
 router.afterEach((to) => {

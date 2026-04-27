@@ -24,17 +24,27 @@
       <header class="border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur lg:px-8">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <p class="text-sm text-slate-500">Frontend bootstrap</p>
+            <p class="text-sm text-slate-500">Authenticated workspace</p>
             <h2 class="text-xl font-semibold text-slate-900">{{ pageTitle }}</h2>
           </div>
 
-          <Button
-            label="Logout"
-            icon="pi pi-sign-out"
-            severity="secondary"
-            outlined
-            @click="handleLogoutPlaceholder"
-          />
+          <div class="flex items-center gap-4">
+            <div class="hidden text-right md:block">
+              <p class="text-sm font-medium text-slate-900">{{ userName }}</p>
+              <p class="text-xs text-slate-500">{{ userEmail }}</p>
+            </div>
+
+            <Avatar :label="userInitial" shape="circle" class="bg-sky-100 text-sky-700" />
+
+            <Button
+              label="Logout"
+              icon="pi pi-sign-out"
+              severity="secondary"
+              outlined
+              :loading="authStore.loading"
+              @click="handleLogout"
+            />
+          </div>
         </div>
       </header>
 
@@ -47,10 +57,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 
+import { useAuthStore } from '@/app/stores/authStore'
+
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: 'pi-home' },
@@ -64,8 +79,12 @@ const navItems = [
 ]
 
 const pageTitle = computed(() => String(route.meta.title ?? 'Workspace'))
+const userName = computed(() => authStore.user?.name ?? 'Authenticated User')
+const userEmail = computed(() => authStore.user?.email ?? 'No email loaded')
+const userInitial = computed(() => userName.value.charAt(0).toUpperCase())
 
-function handleLogoutPlaceholder(): void {
-  window.alert('Logout wiring will be implemented in a later phase.')
+async function handleLogout(): Promise<void> {
+  await authStore.logout()
+  await router.push('/login')
 }
 </script>
