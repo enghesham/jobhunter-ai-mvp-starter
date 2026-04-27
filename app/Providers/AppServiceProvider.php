@@ -8,10 +8,8 @@ use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
+use App\Services\AI\AiProviderManager;
 use App\Services\AI\Contracts\AiProviderInterface;
-use App\Services\AI\Providers\BedrockProvider;
-use App\Services\AI\Providers\NullAiProvider;
-use App\Services\AI\Providers\OpenAiProvider;
 use App\Services\JobAnalysis\AiAwareJobAnalysisService;
 use App\Services\JobAnalysis\Contracts\JobAnalysisServiceInterface;
 use App\Policies\AnswerTemplatePolicy;
@@ -32,13 +30,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(AiProviderInterface::class, function () {
-            return match ((string) config('jobhunter.ai_provider', 'null')) {
-                'openai' => app(OpenAiProvider::class),
-                'bedrock' => app(BedrockProvider::class),
-                default => app(NullAiProvider::class),
-            };
-        });
+        $this->app->singleton(AiProviderManager::class);
+        $this->app->bind(AiProviderInterface::class, fn () => app(AiProviderManager::class)->driver());
 
         $this->app->bind(JobAnalysisServiceInterface::class, AiAwareJobAnalysisService::class);
     }

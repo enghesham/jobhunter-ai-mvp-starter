@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Services\AI\Contracts\AiProviderException;
 use App\Services\AI\Contracts\AiProviderInterface;
-use App\Services\AI\Prompts\JobAnalysisPromptFactory;
+use App\Services\AI\Prompts\AnalyzeJobPrompt;
 use App\Services\JobAnalysis\AiAwareJobAnalysisService;
 use App\Services\JobAnalysis\BasicKeywordJobAnalysisService;
 use App\Services\JobAnalysis\Support\JobAnalysisResultValidator;
@@ -22,9 +22,24 @@ class AiAwareJobAnalysisServiceTest extends TestCase
                 return null;
             }
 
+            public function explainMatch(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $scoreBreakdown, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function tailorResume(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'null';
+            }
+
+            public function model(): ?string
+            {
+                return null;
             }
         });
 
@@ -45,9 +60,24 @@ class AiAwareJobAnalysisServiceTest extends TestCase
                 throw new AiProviderException('provider timeout');
             }
 
+            public function explainMatch(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $scoreBreakdown, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function tailorResume(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'failing-provider';
+            }
+
+            public function model(): ?string
+            {
+                return 'fake-model';
             }
         });
 
@@ -74,9 +104,24 @@ class AiAwareJobAnalysisServiceTest extends TestCase
                 ];
             }
 
+            public function explainMatch(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $scoreBreakdown, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function tailorResume(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'invalid-provider';
+            }
+
+            public function model(): ?string
+            {
+                return 'fake-model';
             }
         });
 
@@ -91,7 +136,7 @@ class AiAwareJobAnalysisServiceTest extends TestCase
         return new AiAwareJobAnalysisService(
             $provider,
             new BasicKeywordJobAnalysisService(),
-            new JobAnalysisPromptFactory(),
+            new AnalyzeJobPrompt(),
             new JobAnalysisResultValidator(),
         );
     }

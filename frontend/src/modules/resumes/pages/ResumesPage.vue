@@ -155,6 +155,22 @@
             <li v-for="project in selectedResume.selected_projects || []" :key="project">{{ project }}</li>
           </ul>
         </div>
+
+        <div v-if="(selectedResume.warnings_or_gaps || []).length > 0" class="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+          <h4 class="mb-3 text-lg font-semibold text-slate-900">Warnings / Gaps</h4>
+          <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+            <li v-for="warning in selectedResume.warnings_or_gaps || []" :key="warning">{{ warning }}</li>
+          </ul>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <h4 class="mb-3 text-lg font-semibold text-slate-900">AI Metadata</h4>
+          <div class="grid gap-3 md:grid-cols-3 text-sm text-slate-700">
+            <p><span class="font-medium text-slate-900">Provider:</span> {{ selectedResume.ai_provider || 'Deterministic fallback' }}</p>
+            <p><span class="font-medium text-slate-900">Model:</span> {{ selectedResume.ai_model || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Confidence:</span> {{ selectedResume.ai_confidence_score ?? 0 }}%</p>
+          </div>
+        </div>
       </div>
     </Dialog>
   </div>

@@ -26,6 +26,13 @@ class ResumeController extends Controller
         return ApiResponse::success(TailoredResumeResource::collection($resumes)->response()->getData(true));
     }
 
+    public function show(TailoredResume $resume): JsonResponse
+    {
+        abort_if($resume->user_id !== auth()->id(), 404);
+
+        return ApiResponse::success(new TailoredResumeResource($resume->load(['job', 'profile'])));
+    }
+
     public function generate(GenerateResumeRequest $request, Job $job, ResumeGenerationService $resumeGenerationService): JsonResponse
     {
         $this->authorize('view', $job);
@@ -45,6 +52,6 @@ class ResumeController extends Controller
             return ApiResponse::error($exception->getMessage(), 422);
         }
 
-        return ApiResponse::success(new TailoredResumeResource($resume), 201);
+        return ApiResponse::success(new TailoredResumeResource($resume->load(['job', 'profile'])), 201);
     }
 }

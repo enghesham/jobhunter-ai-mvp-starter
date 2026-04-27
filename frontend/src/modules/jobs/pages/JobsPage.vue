@@ -193,6 +193,18 @@
                 <Tag v-for="skill in selectedJob.analysis.preferred_skills || []" :key="`preferred-${skill}`" :value="skill" severity="info" />
               </div>
             </div>
+            <div>
+              <p class="mb-2 text-sm font-medium text-slate-700">Must-Have Skills</p>
+              <div class="flex flex-wrap gap-2">
+                <Tag v-for="skill in selectedJob.analysis.must_have_skills || []" :key="`must-${skill}`" :value="skill" severity="danger" />
+              </div>
+            </div>
+            <div>
+              <p class="mb-2 text-sm font-medium text-slate-700">Nice-To-Have Skills</p>
+              <div class="flex flex-wrap gap-2">
+                <Tag v-for="skill in selectedJob.analysis.nice_to_have_skills || []" :key="`nice-${skill}`" :value="skill" severity="warn" />
+              </div>
+            </div>
             <div class="rounded-2xl bg-white px-4 py-3">
               <p class="text-slate-500">Seniority</p>
               <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.seniority || 'N/A' }}</p>
@@ -201,6 +213,14 @@
               <p class="text-slate-500">Role Type</p>
               <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.role_type || 'N/A' }}</p>
             </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Confidence Score</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.confidence_score ?? 0 }}%</p>
+            </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">AI Provider</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.ai_provider || 'Deterministic fallback' }}</p>
+            </div>
           </div>
 
           <div class="mt-4">
@@ -208,6 +228,25 @@
             <div class="flex flex-wrap gap-2">
               <Tag v-for="tag in selectedJob.analysis.domain_tags || []" :key="tag" :value="tag" severity="warn" />
             </div>
+          </div>
+
+          <div class="mt-4">
+            <p class="mb-2 text-sm font-medium text-slate-700">Tech Stack</p>
+            <div class="flex flex-wrap gap-2">
+              <Tag v-for="tech in selectedJob.analysis.tech_stack || []" :key="tech" :value="tech" severity="contrast" />
+            </div>
+          </div>
+
+          <div v-if="(selectedJob.analysis.responsibilities || []).length > 0" class="mt-4 rounded-2xl bg-white px-4 py-3">
+            <p class="mb-2 text-sm font-medium text-slate-700">Responsibilities</p>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="responsibility in selectedJob.analysis.responsibilities || []" :key="responsibility">{{ responsibility }}</li>
+            </ul>
+          </div>
+
+          <div v-if="selectedJob.analysis.company_context" class="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+            <p class="mb-2 text-sm font-medium text-slate-700">Company Context</p>
+            {{ selectedJob.analysis.company_context }}
           </div>
 
           <div v-if="selectedJob.analysis.ai_summary" class="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-slate-700">
@@ -302,6 +341,48 @@
             <ProgressBar :value="metric.value" />
           </div>
         </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Why Matched</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ latestMatch.why_matched || latestMatch.ai_recommendation_summary || 'No AI explanation available.' }}</p>
+          </div>
+
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Recommendation Summary</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ latestMatch.ai_recommendation_summary || latestMatch.notes || 'No summary available.' }}</p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Strength Areas</h4>
+            <div class="flex flex-wrap gap-2">
+              <Tag v-for="item in latestMatch.strength_areas || []" :key="item" :value="item" severity="success" />
+            </div>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Missing Skills</h4>
+            <div class="flex flex-wrap gap-2">
+              <Tag v-for="item in latestMatch.missing_skills || []" :key="item" :value="item" severity="danger" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Risk Flags</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in latestMatch.risk_flags || []" :key="item">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Resume Focus Points</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in latestMatch.resume_focus_points || []" :key="item">{{ item }}</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </Dialog>
 
@@ -373,11 +454,20 @@
           </ul>
         </div>
 
+        <div v-if="(generatedResume.warnings_or_gaps || []).length > 0" class="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+          <h4 class="mb-3 text-lg font-semibold text-slate-900">Warnings / Gaps</h4>
+          <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+            <li v-for="warning in generatedResume.warnings_or_gaps || []" :key="warning">{{ warning }}</li>
+          </ul>
+        </div>
+
         <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-3 text-lg font-semibold text-slate-900">Stored Output</h4>
           <div class="space-y-2 text-sm text-slate-700">
             <p><span class="font-medium text-slate-900">HTML path:</span> {{ generatedResume.html_path || 'N/A' }}</p>
             <p><span class="font-medium text-slate-900">PDF path:</span> {{ generatedResume.pdf_path || 'Not generated' }}</p>
+            <p><span class="font-medium text-slate-900">AI provider:</span> {{ generatedResume.ai_provider || 'Deterministic fallback' }}</p>
+            <p><span class="font-medium text-slate-900">AI confidence:</span> {{ generatedResume.ai_confidence_score ?? 0 }}%</p>
           </div>
         </div>
       </div>

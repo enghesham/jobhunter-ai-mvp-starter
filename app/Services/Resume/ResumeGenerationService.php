@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\View;
 
 class ResumeGenerationService
 {
-    public function __construct(private readonly ResumePdfService $pdfService)
-    {
+    public function __construct(
+        private readonly ResumePdfService $pdfService,
+        private readonly AiResumeTailoringService $aiResumeTailoringService,
+    ) {
     }
 
     public function generate(Job $job, CandidateProfile $profile, string $versionName = 'v1'): TailoredResume
@@ -34,21 +36,52 @@ class ResumeGenerationService
         $projects = $this->selectedProjects($profile->projects, $job);
         $headline = $profile->headline ?: $job->title;
         $summary = $this->summary($profile, $job, $selectedSkills, $match);
-        $atsKeywords = collect($job->analysis?->required_skills ?? [])->values()->all();
+        $atsKeywords = collect(array_merge(
+            $job->analysis?->required_skills ?? [],
+            $job->analysis?->must_have_skills ?? []
+        ))->unique()->values()->all();
+        $warningsOrGaps = $this->warningsOrGaps($profile, $job);
 
-        $resumePayload = [
-            'headline' => $headline,
-            'professional_summary' => $summary,
+        $basePayload = [
+            'tailored_headline' => $headline,
+            'tailored_summary' => $summary,
             'selected_skills' => $selectedSkills,
-            'selected_experience_bullets' => $experienceBullets,
+            'tailored_experience_bullets' => $experienceBullets,
             'selected_projects' => $projects,
             'ats_keywords' => $atsKeywords,
+            'warnings_or_gaps' => $warningsOrGaps,
+            'confidence_score' => 55,
         ];
+
+        $aiContext = [
+            'candidate_profile' => $this->candidateContext($profile),
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'company_name' => $job->company_name,
+            ],
+            'analysis' => $job->analysis?->toArray() ?? [],
+            'base_resume_payload' => $basePayload,
+            'allowed_skills' => array_values(array_unique(array_merge($profile->core_skills ?? [], $profile->nice_to_have_skills ?? []))),
+            'allowed_projects' => $profile->projects->pluck('name')->filter()->values()->all(),
+            'allowed_keywords' => $atsKeywords,
+            'source_experience_bullets' => $experienceBullets,
+        ];
+
+        $resumePayload = $this->aiResumeTailoringService->tailor($profile, $job, $aiContext, $basePayload);
 
         $html = View::make('resumes.templates.default', [
             'profile' => $profile,
             'job' => $job,
-            'resume' => $resumePayload,
+            'resume' => [
+                'headline' => $resumePayload['tailored_headline'],
+                'professional_summary' => $resumePayload['tailored_summary'],
+                'selected_skills' => $resumePayload['selected_skills'],
+                'selected_experience_bullets' => $resumePayload['tailored_experience_bullets'],
+                'selected_projects' => $resumePayload['selected_projects'],
+                'ats_keywords' => $resumePayload['ats_keywords'],
+                'warnings_or_gaps' => $resumePayload['warnings_or_gaps'],
+            ],
             'match' => $match,
         ])->render();
 
@@ -60,12 +93,18 @@ class ResumeGenerationService
             'user_id' => $profile->user_id ?: $job->user_id,
             'profile_id' => $profile->id,
             'version_name' => $versionName,
-            'headline_text' => $headline,
-            'summary_text' => $summary,
-            'skills_text' => implode("\n", $selectedSkills),
-            'experience_text' => implode("\n", $experienceBullets),
-            'projects_text' => implode("\n", $projects),
-            'ats_keywords' => $atsKeywords,
+            'headline_text' => $resumePayload['tailored_headline'],
+            'summary_text' => $resumePayload['tailored_summary'],
+            'skills_text' => implode("\n", $resumePayload['selected_skills']),
+            'experience_text' => implode("\n", $resumePayload['tailored_experience_bullets']),
+            'projects_text' => implode("\n", $resumePayload['selected_projects']),
+            'ats_keywords' => $resumePayload['ats_keywords'],
+            'warnings_or_gaps' => $resumePayload['warnings_or_gaps'],
+            'ai_provider' => $resumePayload['ai_provider'],
+            'ai_model' => $resumePayload['ai_model'],
+            'ai_generated_at' => $resumePayload['ai_generated_at'],
+            'ai_confidence_score' => $resumePayload['ai_confidence_score'] ?? $resumePayload['confidence_score'] ?? null,
+            'ai_raw_response' => $resumePayload['ai_raw_response'],
             'html_path' => $documentPaths['html_path'],
             'pdf_path' => $documentPaths['pdf_path'],
         ]);
@@ -168,5 +207,50 @@ class ResumeGenerationService
             "Tailored for {$job->title} at {$job->company_name}, emphasizing {$skillsText}.",
             $matchText,
         ])));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function warningsOrGaps(CandidateProfile $profile, Job $job): array
+    {
+        $candidateSkills = collect(array_merge($profile->core_skills ?? [], $profile->nice_to_have_skills ?? []))
+            ->map(fn (string $skill): string => mb_strtolower($skill))
+            ->all();
+
+        return collect($job->analysis?->must_have_skills ?? [])
+            ->filter(fn (string $skill): bool => ! in_array(mb_strtolower($skill), $candidateSkills, true))
+            ->map(fn (string $skill): string => "Requirement not evidenced in profile: {$skill}.")
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateContext(CandidateProfile $profile): array
+    {
+        return [
+            'full_name' => $profile->full_name,
+            'headline' => $profile->headline,
+            'base_summary' => $profile->base_summary,
+            'years_experience' => $profile->years_experience,
+            'preferred_roles' => $profile->preferred_roles,
+            'preferred_locations' => $profile->preferred_locations,
+            'core_skills' => $profile->core_skills,
+            'nice_to_have_skills' => $profile->nice_to_have_skills,
+            'experiences' => $profile->experiences->map(fn (CandidateExperience $experience) => [
+                'company' => $experience->company,
+                'title' => $experience->title,
+                'description' => $experience->description,
+                'achievements' => $experience->achievements ?? [],
+                'tech_stack' => $experience->tech_stack ?? [],
+            ])->values()->all(),
+            'projects' => $profile->projects->map(fn (CandidateProject $project) => [
+                'name' => $project->name,
+                'description' => $project->description,
+                'tech_stack' => $project->tech_stack ?? [],
+            ])->values()->all(),
+        ];
     }
 }

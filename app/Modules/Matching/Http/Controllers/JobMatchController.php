@@ -20,4 +20,11 @@ class JobMatchController extends Controller
 
         return ApiResponse::success(JobMatchResource::collection($matches)->response()->getData(true));
     }
+
+    public function explanation(JobMatch $match): JsonResponse
+    {
+        abort_if($match->user_id !== auth()->id(), 404);
+
+        return ApiResponse::success(new JobMatchResource($match->load(['job', 'profile'])));
+    }
 }

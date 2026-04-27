@@ -20,17 +20,27 @@ class BasicKeywordJobAnalysisService implements JobAnalysisServiceInterface
         $text = $this->text($job);
         $requiredSkills = $this->findSkills($text);
         $preferredSkills = $this->preferredSkills($text, $requiredSkills);
+        $mustHaveSkills = $requiredSkills;
+        $niceToHaveSkills = $preferredSkills;
         $seniority = $this->seniority($text);
         $roleType = $this->roleType($text);
         $domainTags = $this->domainTags($text);
+        $techStack = $this->techStack($requiredSkills);
+        $responsibilities = $this->responsibilities($job);
 
         return [
             'required_skills' => $requiredSkills,
             'preferred_skills' => $preferredSkills,
+            'must_have_skills' => $mustHaveSkills,
+            'nice_to_have_skills' => $niceToHaveSkills,
             'seniority' => $seniority,
             'role_type' => $roleType,
             'domain_tags' => $domainTags,
+            'tech_stack' => $techStack,
+            'responsibilities' => $responsibilities,
+            'company_context' => $job->company_name ? "{$job->company_name} hiring context inferred from title and description." : null,
             'ai_summary' => $this->summary($job, $requiredSkills, $seniority, $roleType),
+            'confidence_score' => 62,
         ];
     }
 
@@ -112,6 +122,41 @@ class BasicKeywordJobAnalysisService implements JobAnalysisServiceInterface
         return collect($tags)
             ->filter(fn (array $signals): bool => collect($signals)->contains(fn (string $signal): bool => str_contains($text, $signal)))
             ->keys()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, string> $skills
+     * @return array<int, string>
+     */
+    private function techStack(array $skills): array
+    {
+        return collect($skills)
+            ->filter(fn (string $skill): bool => in_array($skill, [
+                'PHP', 'Laravel', 'CodeIgniter', 'Python', 'Django', 'FastAPI',
+                'PostgreSQL', 'MySQL', 'Redis', 'OpenSearch', 'Elasticsearch',
+                'Docker', 'AWS', 'Kubernetes', 'RabbitMQ', 'SQS', 'GraphQL',
+            ], true))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function responsibilities(Job $job): array
+    {
+        $text = trim((string) ($job->description_clean ?: $job->description_raw));
+
+        if ($text === '') {
+            return [];
+        }
+
+        return collect(preg_split('/(?<=[.!?])\s+/', $text) ?: [])
+            ->map(fn (string $line): string => trim(strip_tags($line)))
+            ->filter(fn (string $line): bool => $line !== '')
+            ->take(5)
             ->values()
             ->all();
     }

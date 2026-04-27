@@ -4,10 +4,20 @@ import type { CandidateProfile } from '@/modules/candidate-profile/types'
 export interface JobAnalysis {
   required_skills?: string[]
   preferred_skills?: string[]
+  must_have_skills?: string[]
+  nice_to_have_skills?: string[]
   seniority?: string | null
   role_type?: string | null
   domain_tags?: string[]
+  tech_stack?: string[]
+  responsibilities?: string[]
+  company_context?: string | null
   ai_summary?: string | null
+  confidence_score?: number | null
+  ai_provider?: string | null
+  ai_model?: string | null
+  ai_generated_at?: string | null
+  ai_confidence_score?: number | null
   analyzed_at?: string | null
 }
 
@@ -25,6 +35,16 @@ export interface JobMatch {
   domain_score?: number | null
   recommendation?: string | null
   notes?: string | null
+  why_matched?: string | null
+  missing_skills?: string[]
+  strength_areas?: string[]
+  risk_flags?: string[]
+  resume_focus_points?: string[]
+  ai_recommendation_summary?: string | null
+  ai_provider?: string | null
+  ai_model?: string | null
+  ai_generated_at?: string | null
+  ai_confidence_score?: number | null
   job?: {
     id?: number
     title?: string | null
@@ -48,11 +68,19 @@ export interface TailoredResume {
   candidate_profile_id?: number
   version_name?: string | null
   headline?: string | null
+  tailored_headline?: string | null
   professional_summary?: string | null
+  tailored_summary?: string | null
   selected_skills?: string[]
   selected_experience_bullets?: string[]
+  tailored_experience_bullets?: string[]
   selected_projects?: string[]
   ats_keywords?: string[]
+  warnings_or_gaps?: string[]
+  ai_provider?: string | null
+  ai_model?: string | null
+  ai_generated_at?: string | null
+  ai_confidence_score?: number | null
   html_path?: string | null
   pdf_path?: string | null
   html_url?: string | null

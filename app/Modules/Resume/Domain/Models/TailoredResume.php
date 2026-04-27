@@ -21,12 +21,20 @@ class TailoredResume extends Model
         'experience_text',
         'projects_text',
         'ats_keywords',
+        'warnings_or_gaps',
+        'ai_provider',
+        'ai_model',
+        'ai_generated_at',
+        'ai_confidence_score',
+        'ai_raw_response',
         'html_path',
         'pdf_path',
     ];
 
     protected $casts = [
         'ats_keywords' => 'array',
+        'warnings_or_gaps' => 'array',
+        'ai_generated_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\AnalyzeJobJob;
 use App\Jobs\MatchJobToProfileJob;
 use App\Modules\Jobs\Domain\Models\Job;
+use App\Modules\Jobs\Http\Resources\JobAnalysisResource;
 use App\Modules\Jobs\Http\Requests\MatchJobRequest;
 use App\Modules\Jobs\Http\Resources\JobResource;
 use App\Support\ApiResponse;
@@ -28,7 +29,7 @@ class JobController extends Controller
     public function show(Job $job): JsonResponse
     {
         $this->authorize('view', $job);
-        return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches')));
+        return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches.profile')));
     }
 
     public function analyze(Job $job): JsonResponse
@@ -54,6 +55,13 @@ class JobController extends Controller
             return ApiResponse::error($exception->getMessage(), 422);
         }
 
-        return ApiResponse::success(new JobResource($job->fresh(['analysis', 'source', 'matches'])));
+        return ApiResponse::success(new JobResource($job->fresh(['analysis', 'source', 'matches.profile'])));
+    }
+
+    public function analysis(Job $job): JsonResponse
+    {
+        $this->authorize('view', $job);
+
+        return ApiResponse::success(new JobAnalysisResource($job->load('analysis')->analysis));
     }
 }

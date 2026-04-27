@@ -1,7 +1,10 @@
 <?php
 
 return [
+    'ai_enabled' => filter_var(env('JOBHUNTER_AI_ENABLED', false), FILTER_VALIDATE_BOOL),
     'ai_provider' => env('JOBHUNTER_AI_PROVIDER', 'null'),
+    'openai_api_key' => env('OPENAI_API_KEY'),
+    'ai_timeout' => env('JOBHUNTER_AI_TIMEOUT', 30),
     'scan_hours' => env('JOBHUNTER_SCAN_HOURS', 6),
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
     'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),

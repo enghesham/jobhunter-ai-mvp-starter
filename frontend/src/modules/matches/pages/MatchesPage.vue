@@ -118,6 +118,47 @@
             <ProgressBar :value="metric.value" />
           </div>
         </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Why Matched</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ selectedMatch.why_matched || 'No detailed explanation available.' }}</p>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Recommendation Summary</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ selectedMatch.ai_recommendation_summary || selectedMatch.notes || 'No recommendation summary available.' }}</p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Strength Areas</h4>
+            <div class="flex flex-wrap gap-2">
+              <StatusTag v-for="item in selectedMatch.strength_areas || []" :key="item" :label="item" :value="'matched'" />
+            </div>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Missing Skills</h4>
+            <div class="flex flex-wrap gap-2">
+              <StatusTag v-for="item in selectedMatch.missing_skills || []" :key="item" :label="item" :value="'rejected'" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Risk Flags</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in selectedMatch.risk_flags || []" :key="item">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Resume Focus Points</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in selectedMatch.resume_focus_points || []" :key="item">{{ item }}</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </Dialog>
   </div>

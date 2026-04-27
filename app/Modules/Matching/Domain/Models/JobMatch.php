@@ -22,12 +22,28 @@ class JobMatch extends Model
         'backend_focus_score',
         'domain_score',
         'notes',
+        'why_matched',
+        'missing_skills',
+        'strength_areas',
+        'risk_flags',
+        'resume_focus_points',
+        'ai_recommendation_summary',
         'recommendation',
+        'ai_provider',
+        'ai_model',
+        'ai_generated_at',
+        'ai_confidence_score',
+        'ai_raw_response',
         'matched_at',
     ];
 
     protected $casts = [
         'matched_at' => 'datetime',
+        'ai_generated_at' => 'datetime',
+        'missing_skills' => 'array',
+        'strength_areas' => 'array',
+        'risk_flags' => 'array',
+        'resume_focus_points' => 'array',
     ];
 
     public function profile(): BelongsTo
