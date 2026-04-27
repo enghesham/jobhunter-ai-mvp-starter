@@ -69,16 +69,13 @@
 
         <Column header="Overall Score">
           <template #body="{ data }">
-            <div class="space-y-2">
-              <p class="font-medium text-slate-900">{{ normalizeScore(data.overall_score) }}%</p>
-              <ProgressBar :value="normalizeScore(data.overall_score)" />
-            </div>
+            <ScoreBadge :score="data.overall_score" label="Overall" />
           </template>
         </Column>
 
         <Column header="Recommendation">
           <template #body="{ data }">
-            <Tag :severity="recommendationSeverity(data.recommendation)" :value="data.recommendation || 'unknown'" />
+            <StatusTag :value="data.recommendation" />
           </template>
         </Column>
 
@@ -105,7 +102,7 @@
           <div>
             <div class="flex flex-wrap items-center gap-3">
               <h3 class="text-2xl font-semibold text-slate-900">{{ selectedMatch.job?.title || `Job #${selectedMatch.job_id}` }}</h3>
-              <Tag :severity="recommendationSeverity(selectedMatch.recommendation)" :value="selectedMatch.recommendation || 'unknown'" />
+              <StatusTag :value="selectedMatch.recommendation" />
             </div>
             <p class="mt-1 text-sm text-slate-500">{{ selectedMatch.job?.company_name || 'Unknown company' }}</p>
             <p class="mt-2 text-sm leading-6 text-slate-700">{{ selectedMatch.notes || 'No additional notes were returned.' }}</p>
@@ -137,7 +134,6 @@ import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Knob from 'primevue/knob'
 import ProgressBar from 'primevue/progressbar'
-import Tag from 'primevue/tag'
 import { RouterLink } from 'vue-router'
 
 import type { JobMatch } from '@/modules/jobs/types'
@@ -145,7 +141,9 @@ import { listMatches } from '@/modules/matches/services/matchesApi'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ErrorState from '@/shared/components/ErrorState.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
+import ScoreBadge from '@/shared/components/ScoreBadge.vue'
 import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import StatusTag from '@/shared/components/StatusTag.vue'
 import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage, getCollectionTotal } from '@/shared/utils/api'
 
@@ -219,19 +217,6 @@ function normalizeScore(value?: number | null): number {
   }
 
   return value <= 1 ? Math.round(value * 100) : Math.round(value)
-}
-
-function recommendationSeverity(recommendation?: string | null): 'success' | 'info' | 'warn' | 'danger' {
-  switch (recommendation) {
-    case 'strong_match':
-      return 'success'
-    case 'good_match':
-      return 'info'
-    case 'weak_match':
-      return 'warn'
-    default:
-      return 'danger'
-  }
 }
 
 function formatDateTime(value?: string | null): string {

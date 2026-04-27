@@ -106,7 +106,7 @@
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 class="text-2xl font-semibold text-slate-900">{{ selectedResume.headline || 'Generated Resume' }}</h3>
-            <p class="mt-1 text-sm text-slate-500">{{ selectedResume.job?.title || `Job #${selectedResume.job_id}` }} · {{ selectedResume.version_name || 'v1' }}</p>
+            <p class="mt-1 text-sm text-slate-500">{{ selectedResume.job?.title || `Job #${selectedResume.job_id}` }} | {{ selectedResume.version_name || 'v1' }}</p>
           </div>
 
           <div class="flex flex-wrap gap-2">

@@ -87,11 +87,11 @@
               @update:model-value="(value) => handleQuickStatusUpdate(data.id, value)"
             >
               <template #value="{ value }">
-                <Tag v-if="value" :severity="statusSeverity(value)" :value="statusLabel(value)" />
+                <StatusTag v-if="value" :value="value" />
                 <span v-else class="text-slate-400">Select status</span>
               </template>
               <template #option="{ option }">
-                <Tag :severity="statusSeverity(option.value)" :value="option.label" />
+                <StatusTag :value="option.value" :label="option.label" />
               </template>
             </Select>
           </template>
@@ -205,14 +205,14 @@
       <div v-if="detailsLoading" class="flex items-center justify-center py-16">
         <ProgressSpinner stroke-width="4" />
       </div>
-      <div v-else-if="selectedApplication" class="space-y-6">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h3 class="text-2xl font-semibold text-slate-900">{{ selectedApplication.job?.title || `Job #${selectedApplication.job_id}` }}</h3>
-            <p class="mt-1 text-sm text-slate-500">{{ selectedApplication.job?.company_name || 'Unknown company' }}</p>
+        <div v-else-if="selectedApplication" class="space-y-6">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 class="text-2xl font-semibold text-slate-900">{{ selectedApplication.job?.title || `Job #${selectedApplication.job_id}` }}</h3>
+              <p class="mt-1 text-sm text-slate-500">{{ selectedApplication.job?.company_name || 'Unknown company' }}</p>
+            </div>
+            <StatusTag :value="selectedApplication.status" />
           </div>
-          <Tag :severity="statusSeverity(selectedApplication.status)" :value="statusLabel(selectedApplication.status)" />
-        </div>
 
         <div class="grid gap-4 md:grid-cols-2">
           <div class="rounded-2xl bg-slate-50 px-4 py-3">
@@ -284,7 +284,6 @@ import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
-import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -308,6 +307,7 @@ import FormError from '@/shared/components/FormError.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
 import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import StatusTag from '@/shared/components/StatusTag.vue'
 import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 
@@ -550,21 +550,6 @@ function resetForm(): void {
 
 function fieldError(field: string): string | null {
   return validationErrors.value[field]?.[0] ?? null
-}
-
-function statusSeverity(status: string): 'contrast' | 'info' | 'success' | 'warn' | 'danger' {
-  switch (status) {
-    case 'offer':
-      return 'success'
-    case 'interview':
-      return 'info'
-    case 'applied':
-      return 'warn'
-    case 'rejected':
-      return 'danger'
-    default:
-      return 'contrast'
-  }
 }
 
 function statusLabel(status: string): string {

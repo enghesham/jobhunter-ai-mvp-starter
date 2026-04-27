@@ -63,21 +63,20 @@
           </div>
 
           <div class="flex items-center gap-4">
-            <div class="hidden text-right md:block">
-              <p class="text-sm font-medium text-slate-900">{{ userName }}</p>
-              <p class="text-xs text-slate-500">{{ userEmail }}</p>
-            </div>
+            <Menu ref="userMenu" :model="userMenuItems" popup />
+            <button
+              type="button"
+              class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm shadow-slate-200/50 transition hover:border-sky-300 hover:bg-sky-50"
+              @click="toggleUserMenu"
+            >
+              <div class="hidden text-right md:block">
+                <p class="text-sm font-medium text-slate-900">{{ userName }}</p>
+                <p class="text-xs text-slate-500">{{ userEmail }}</p>
+              </div>
 
-            <Avatar :label="userInitial" shape="circle" class="bg-sky-100 text-sky-700" />
-
-            <Button
-              label="Logout"
-              icon="pi pi-sign-out"
-              severity="secondary"
-              outlined
-              :loading="authStore.loading"
-              @click="handleLogout"
-            />
+              <Avatar :label="userInitial" shape="circle" class="bg-sky-100 text-sky-700" />
+              <i class="pi pi-chevron-down text-xs text-slate-500" />
+            </button>
           </div>
         </div>
       </header>
@@ -94,6 +93,8 @@ import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
+import Menu from 'primevue/menu'
+import type { MenuItem } from 'primevue/menuitem'
 
 import { useAuthStore } from '@/app/stores/authStore'
 
@@ -102,6 +103,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
+const userMenu = ref()
 
 const navSections = [
   {
@@ -135,6 +137,35 @@ const pageTitle = computed(() => String(route.meta.title ?? 'Workspace'))
 const userName = computed(() => authStore.user?.name ?? 'Authenticated User')
 const userEmail = computed(() => authStore.user?.email ?? 'No email loaded')
 const userInitial = computed(() => userName.value.charAt(0).toUpperCase())
+const userMenuItems = computed<MenuItem[]>(() => [
+  {
+    label: userName.value,
+    items: [
+      {
+        label: userEmail.value,
+        icon: 'pi pi-envelope',
+        disabled: true,
+      },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      {
+        label: 'Candidate Profile',
+        icon: 'pi pi-user',
+        command: () => router.push('/candidate-profile'),
+      },
+      {
+        label: 'Logout',
+        icon: 'pi pi-sign-out',
+        command: () => {
+          void handleLogout()
+        },
+      },
+    ],
+  },
+])
 
 async function handleLogout(): Promise<void> {
   await authStore.logout()
@@ -143,5 +174,9 @@ async function handleLogout(): Promise<void> {
 
 function isActiveRoute(target: string): boolean {
   return route.path === target || route.path.startsWith(`${target}/`)
+}
+
+function toggleUserMenu(event: Event): void {
+  userMenu.value?.toggle(event)
 }
 </script>

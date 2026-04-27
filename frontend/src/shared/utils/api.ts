@@ -63,6 +63,15 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
     return payload.message
   }
 
+  if (axiosError.response?.status === 404) {
+    return 'The requested resource could not be found.'
+  }
+
+  if (axiosError.response?.status === 422) {
+    const firstValidationError = Object.values(axiosError.response?.data?.errors ?? {}).flat()[0]
+    return firstValidationError ?? 'Please review the submitted data and try again.'
+  }
+
   if (axiosError.response?.status === 403) {
     return 'You do not have permission to perform this action.'
   }

@@ -42,6 +42,10 @@ api.interceptors.response.use(
       }
     } else if (error.response?.status === 403) {
       emitHttpToast('Permission denied', error.response?.data?.message ?? 'You do not have access to perform this action.')
+    } else if (error.response?.status === 404) {
+      emitHttpToast('Not found', 'The requested resource could not be found or may no longer exist.')
+    } else if (error.response?.status === 422) {
+      emitHttpToast('Validation failed', normalizeValidationMessage(error.response?.data) ?? 'Please review the highlighted fields and try again.')
     } else if (error.response?.status >= 500) {
       emitHttpToast('Server error', 'The server could not complete the request. Please retry in a moment.')
     } else if (error.code === 'ECONNABORTED' || !error.response) {
@@ -63,4 +67,18 @@ function emitHttpToast(summary: string, detail: string): void {
       life: 5000,
     },
   }))
+}
+
+function normalizeValidationMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+
+  const errors = (payload as { errors?: Record<string, string[]> }).errors
+
+  if (!errors) {
+    return null
+  }
+
+  return Object.values(errors).flat()[0] ?? null
 }
