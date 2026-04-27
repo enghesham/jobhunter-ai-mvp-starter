@@ -3,7 +3,7 @@ import { useAuthStore } from '@/app/stores/authStore'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
-import ApplicationsPage from '@/modules/applications/ApplicationsPage.vue'
+import ApplicationsPage from '@/modules/applications/pages/ApplicationsPage.vue'
 import CandidateProfilePage from '@/modules/candidate-profile/pages/CandidateProfilePage.vue'
 import DashboardPage from '@/modules/dashboard/pages/DashboardPage.vue'
 import JobsPage from '@/modules/jobs/pages/JobsPage.vue'

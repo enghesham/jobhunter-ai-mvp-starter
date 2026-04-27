@@ -17,6 +17,7 @@ class ApplicationController extends Controller
     {
         $applications = Application::query()
             ->where('user_id', auth()->id())
+            ->with(['job', 'profile', 'tailoredResume'])
             ->latest()
             ->paginate();
 
@@ -27,20 +28,31 @@ class ApplicationController extends Controller
     {
         $application = $applicationService->create($request->validated() + ['user_id' => auth()->id()]);
 
-        return ApiResponse::success(new ApplicationResource($application), 201);
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume'])), 201);
     }
 
     public function show(Application $application): JsonResponse
     {
         $this->authorize('view', $application);
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume'])));
+    }
+
+    public function update(UpdateApplicationRequest $request, Application $application, ApplicationService $applicationService): JsonResponse
+    {
+        $this->authorize('update', $application);
+        $application = $applicationService->update(
+            $application,
+            $request->validated() + ['user_id' => auth()->id()]
+        );
+
         return ApiResponse::success(new ApplicationResource($application));
     }
 
-    public function update(UpdateApplicationRequest $request, Application $application): JsonResponse
+    public function destroy(Application $application): JsonResponse
     {
-        $this->authorize('update', $application);
-        $application->update($request->validated());
+        $this->authorize('delete', $application);
+        $application->delete();
 
-        return ApiResponse::success(new ApplicationResource($application->fresh()));
+        return ApiResponse::success(['message' => 'Application deleted']);
     }
 }

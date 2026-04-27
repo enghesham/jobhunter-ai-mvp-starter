@@ -1,0 +1,43 @@
+import api from '@/app/services/api'
+import type { CollectionResponse } from '@/shared/types'
+import { extractApiData, extractCollection } from '@/shared/utils/api'
+import type { Application, ApplicationPayload } from '@/modules/applications/types'
+
+export async function listApplications(): Promise<CollectionResponse<Application>> {
+  const response = await api.get('/jobhunter/applications')
+  return extractCollection<Application>(response.data)
+}
+
+export async function getApplication(id: number): Promise<Application> {
+  const response = await api.get(`/jobhunter/applications/${id}`)
+  return extractApiData<Application>(response.data)
+}
+
+export async function createApplication(payload: ApplicationPayload): Promise<Application> {
+  const response = await api.post('/jobhunter/applications', normalizePayload(payload))
+  return extractApiData<Application>(response.data)
+}
+
+export async function updateApplication(id: number, payload: Partial<ApplicationPayload>): Promise<Application> {
+  const response = await api.patch(`/jobhunter/applications/${id}`, normalizePayload(payload))
+  return extractApiData<Application>(response.data)
+}
+
+export async function deleteApplication(id: number): Promise<void> {
+  await api.delete(`/jobhunter/applications/${id}`)
+}
+
+function normalizePayload(payload: Partial<ApplicationPayload>): Record<string, unknown> {
+  const profileId = payload.profile_id ?? payload.candidate_profile_id
+  const resumeId = payload.tailored_resume_id ?? payload.resume_id ?? null
+
+  return {
+    job_id: payload.job_id,
+    profile_id: profileId,
+    candidate_profile_id: profileId,
+    tailored_resume_id: resumeId,
+    resume_id: resumeId,
+    status: payload.status,
+    notes: payload.notes ?? null,
+  }
+}

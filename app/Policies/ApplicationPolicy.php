@@ -16,4 +16,9 @@ class ApplicationPolicy
     {
         return $application->user_id === $user->id;
     }
+
+    public function delete(User $user, Application $application): bool
+    {
+        return $application->user_id === $user->id;
+    }
 }

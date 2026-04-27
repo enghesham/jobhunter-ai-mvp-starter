@@ -300,6 +300,12 @@
 
           <div class="flex flex-wrap gap-2">
             <Button
+              label="Create Application"
+              icon="pi pi-send"
+              :loading="creatingApplication"
+              @click="handleCreateApplication"
+            />
+            <Button
               v-if="resumePreviewUrl"
               label="Open Preview"
               icon="pi pi-external-link"
@@ -382,6 +388,7 @@ import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 
 import LoadingButton from '@/shared/components/LoadingButton.vue'
+import { createApplication } from '@/modules/applications/services/applicationsApi'
 import PageHeader from '@/shared/components/PageHeader.vue'
 import { copyText } from '@/shared/utils/clipboard'
 import { getApiErrorMessage, getCollectionTotal } from '@/shared/utils/api'
@@ -414,6 +421,8 @@ const matchDialogVisible = ref(false)
 const resumeDialogVisible = ref(false)
 const latestMatch = ref<JobMatch | null>(null)
 const generatedResume = ref<TailoredResume | null>(null)
+const generatedResumeProfileId = ref<number | null>(null)
+const creatingApplication = ref(false)
 const profiles = ref<CandidateProfile[]>([])
 const selectedProfileId = ref<number | null>(null)
 const pendingActionType = ref<PendingActionType>(null)
@@ -599,6 +608,7 @@ async function executeResume(jobId: number, profileId: number): Promise<void> {
   try {
     const resume = await generateResume(jobId, profileId)
     generatedResume.value = resume
+    generatedResumeProfileId.value = profileId
     resumeDialogVisible.value = true
     toast.add({ severity: 'success', summary: 'Resume generated', detail: 'Tailored resume draft created successfully.', life: 3500 })
   } catch (error) {
@@ -659,6 +669,44 @@ async function copyResumeContent(): Promise<void> {
     toast.add({ severity: 'success', summary: 'Copied', detail: 'Resume content copied to clipboard.', life: 2500 })
   } catch {
     toast.add({ severity: 'error', summary: 'Copy failed', detail: 'Could not copy resume content.', life: 3000 })
+  }
+}
+
+async function handleCreateApplication(): Promise<void> {
+  if (!generatedResume.value || !generatedResumeProfileId.value) {
+    return
+  }
+
+  creatingApplication.value = true
+
+  try {
+    await createApplication({
+      job_id: generatedResume.value.job_id,
+      candidate_profile_id: generatedResumeProfileId.value,
+      profile_id: generatedResumeProfileId.value,
+      tailored_resume_id: generatedResume.value.id,
+      resume_id: generatedResume.value.id,
+      status: 'ready_to_apply',
+      notes: 'Created from generated tailored resume.',
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Application created',
+      detail: 'Application was created from the generated resume.',
+      life: 3500,
+    })
+
+    await router.push('/applications')
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Application creation failed',
+      detail: getApiErrorMessage(error, 'Failed to create application from generated resume.'),
+      life: 4500,
+    })
+  } finally {
+    creatingApplication.value = false
   }
 }
 

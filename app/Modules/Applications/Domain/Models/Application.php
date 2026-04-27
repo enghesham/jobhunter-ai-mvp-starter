@@ -5,6 +5,7 @@ namespace App\Modules\Applications\Domain\Models;
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
+use App\Modules\Resume\Domain\Models\TailoredResume;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -42,5 +43,10 @@ class Application extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function tailoredResume(): BelongsTo
+    {
+        return $this->belongsTo(TailoredResume::class, 'tailored_resume_id');
     }
 }

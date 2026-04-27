@@ -29,7 +29,7 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::post('jobs/{job}/match', [JobController::class, 'match'])->middleware('throttle:ai-heavy');
     Route::post('jobs/{job}/generate-resume', [ResumeController::class, 'generate'])->middleware('throttle:ai-heavy');
 
-    Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update']);
+    Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('candidate-profiles/import', [CandidateProfileController::class, 'import']);
     Route::apiResource('candidate-profiles', CandidateProfileController::class);
     Route::apiResource('answer-templates', AnswerTemplateController::class);
@@ -46,7 +46,7 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::post('jobs/{job}/match', [JobController::class, 'match'])->middleware('throttle:ai-heavy');
     Route::post('jobs/{job}/generate-resume', [ResumeController::class, 'generate'])->middleware('throttle:ai-heavy');
 
-    Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update']);
+    Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('candidate-profiles/import', [CandidateProfileController::class, 'import']);
     Route::apiResource('candidate-profiles', CandidateProfileController::class);
     Route::apiResource('answer-templates', AnswerTemplateController::class);
