@@ -6,17 +6,17 @@
       description="The backend does not expose a dedicated resumes listing endpoint yet, so generated drafts are previewed directly from the Jobs screen."
     />
 
-    <PageCard
-      eyebrow="Backend Limitation"
-      title="Resume Versions Are Generated From Jobs"
-      description="Use the Generate Resume action in the Jobs page. The backend currently returns the created tailored resume payload, but it does not provide a GET /jobhunter/resumes list endpoint yet."
+    <EmptyState
+      title="No standalone resumes view yet"
+      description="Generate resumes from the Jobs page. The backend returns the generated resume payload there, but it still does not expose a dedicated resumes listing endpoint."
+      icon="pi-file-edit"
     >
-      <div class="flex flex-wrap gap-3">
+      <template #actions>
         <RouterLink to="/jobs">
           <Button label="Go to Jobs" icon="pi pi-file-edit" />
         </RouterLink>
-      </div>
-    </PageCard>
+      </template>
+    </EmptyState>
   </div>
 </template>
 
@@ -24,6 +24,6 @@
 import Button from 'primevue/button'
 import { RouterLink } from 'vue-router'
 
-import PageCard from '@/shared/components/PageCard.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
 </script>

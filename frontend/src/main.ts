@@ -6,12 +6,15 @@ import { createPinia } from 'pinia'
 import ToastService from 'primevue/toastservice'
 
 import App from './App.vue'
+import { registerGlobalErrorHandler } from './app/config/errorHandler'
 import router from './app/router'
 
 import './style.css'
 import 'primeicons/primeicons.css'
 
 const app = createApp(App)
+
+registerGlobalErrorHandler(app)
 
 app.use(createPinia())
 app.use(router)

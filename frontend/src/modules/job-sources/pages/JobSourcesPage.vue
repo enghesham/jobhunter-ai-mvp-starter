@@ -6,16 +6,20 @@
       description="Manage ingestion sources and push manual job payloads into the backend safely."
     />
 
-    <div v-if="pageError" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ pageError }}
-    </div>
+    <ErrorState v-if="pageError" title="Job sources unavailable" :message="pageError">
+      <template #actions>
+        <Button label="Retry" icon="pi pi-refresh" @click="loadSources" />
+      </template>
+    </ErrorState>
 
-    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+    <SkeletonTable v-if="loading" :columns="6" />
+
+    <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-1 flex-col gap-3 md:flex-row">
           <IconField class="w-full md:max-w-sm">
             <InputIcon class="pi pi-search" />
-            <InputText v-model.trim="filters.query" fluid placeholder="Search by name or URL" />
+            <InputText v-model.trim="sourceQuery" fluid placeholder="Search by name or URL" />
           </IconField>
 
           <Select
@@ -31,16 +35,26 @@
         <Button label="New Source" icon="pi pi-plus" @click="openCreateDialog" />
       </div>
 
+      <EmptyState
+        v-if="filteredSources.length === 0"
+        title="No job sources yet"
+        description="Create a source first, then manually ingest jobs or connect future ingestion workflows."
+        icon="pi-database"
+      >
+        <template #actions>
+          <Button label="Create Source" icon="pi pi-plus" @click="openCreateDialog" />
+        </template>
+      </EmptyState>
+
       <DataTable
+        v-else
         :value="filteredSources"
-        :loading="loading"
         data-key="id"
         paginator
         :rows="10"
         class="mt-6"
         striped-rows
         responsive-layout="scroll"
-        empty-message="No job sources found."
       >
         <Column field="name" header="Name">
           <template #body="{ data }">
@@ -283,9 +297,13 @@ import {
   updateJobSource,
 } from '@/modules/job-sources/services/jobSourcesApi'
 import type { IngestionJobInput, JobSource, JobSourcePayload } from '@/modules/job-sources/types'
+import EmptyState from '@/shared/components/EmptyState.vue'
+import ErrorState from '@/shared/components/ErrorState.vue'
 import FormError from '@/shared/components/FormError.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
+import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 
 interface SourceFormState {
@@ -325,8 +343,9 @@ const selectedSource = ref<JobSource | null>(null)
 const validationErrors = ref<Record<string, string[]>>({})
 const ingestionValidationErrors = ref<Record<string, string>>({})
 const rowKeySeed = ref(1)
+const sourceQuery = ref('')
+const debouncedSourceQuery = useDebouncedValue(sourceQuery, 250)
 const filters = reactive({
-  query: '',
   type: 'all',
 })
 const sources = ref<JobSource[]>([])
@@ -356,7 +375,7 @@ const jobStatusOptions = [
 const dialogTitle = computed(() => (editingSourceId.value ? 'Edit Job Source' : 'Create Job Source'))
 
 const filteredSources = computed(() => {
-  const query = filters.query.trim().toLowerCase()
+  const query = debouncedSourceQuery.value.trim().toLowerCase()
 
   return sources.value.filter((source) => {
     const matchesQuery =

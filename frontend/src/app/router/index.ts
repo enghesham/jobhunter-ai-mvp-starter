@@ -3,16 +3,17 @@ import { useAuthStore } from '@/app/stores/authStore'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
-import ApplicationsPage from '@/modules/applications/pages/ApplicationsPage.vue'
-import CandidateProfilePage from '@/modules/candidate-profile/pages/CandidateProfilePage.vue'
-import DashboardPage from '@/modules/dashboard/pages/DashboardPage.vue'
-import JobsPage from '@/modules/jobs/pages/JobsPage.vue'
-import JobSourcesPage from '@/modules/job-sources/pages/JobSourcesPage.vue'
-import LoginPage from '@/modules/auth/pages/LoginPage.vue'
-import MatchesPage from '@/modules/matches/pages/MatchesPage.vue'
-import RegisterPage from '@/modules/auth/pages/RegisterPage.vue'
-import ResumesPage from '@/modules/resumes/pages/ResumesPage.vue'
-import SettingsPage from '@/modules/settings/SettingsPage.vue'
+
+const ApplicationsPage = () => import('@/modules/applications/pages/ApplicationsPage.vue')
+const CandidateProfilePage = () => import('@/modules/candidate-profile/pages/CandidateProfilePage.vue')
+const DashboardPage = () => import('@/modules/dashboard/pages/DashboardPage.vue')
+const JobsPage = () => import('@/modules/jobs/pages/JobsPage.vue')
+const JobSourcesPage = () => import('@/modules/job-sources/pages/JobSourcesPage.vue')
+const LoginPage = () => import('@/modules/auth/pages/LoginPage.vue')
+const MatchesPage = () => import('@/modules/matches/pages/MatchesPage.vue')
+const RegisterPage = () => import('@/modules/auth/pages/RegisterPage.vue')
+const ResumesPage = () => import('@/modules/resumes/pages/ResumesPage.vue')
+const SettingsPage = () => import('@/modules/settings/SettingsPage.vue')
 
 const router = createRouter({
   history: createWebHistory(),

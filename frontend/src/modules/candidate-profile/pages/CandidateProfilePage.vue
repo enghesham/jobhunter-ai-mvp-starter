@@ -6,15 +6,19 @@
       description="Manage the profiles used for deterministic job matching and tailored resume generation."
     />
 
-    <div v-if="pageError" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ pageError }}
-    </div>
+    <ErrorState v-if="pageError" title="Profiles unavailable" :message="pageError">
+      <template #actions>
+        <Button label="Retry" icon="pi pi-refresh" @click="loadProfiles" />
+      </template>
+    </ErrorState>
 
-    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+    <SkeletonTable v-if="loading" :columns="5" />
+
+    <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <IconField class="w-full lg:max-w-sm">
           <InputIcon class="pi pi-search" />
-          <InputText v-model.trim="query" fluid placeholder="Search by full name or headline" />
+            <InputText v-model.trim="query" fluid placeholder="Search by full name or headline" />
         </IconField>
 
         <div class="flex flex-wrap gap-3">
@@ -23,14 +27,17 @@
         </div>
       </div>
 
-      <div v-if="!loading && filteredProfiles.length === 0" class="mt-8 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-        <h3 class="text-xl font-semibold text-slate-900">No candidate profiles yet</h3>
-        <p class="mt-2 text-sm text-slate-600">Create a profile or import the sample JSON to start matching jobs and generating resumes.</p>
-        <div class="mt-5 flex flex-wrap justify-center gap-3">
+      <EmptyState
+        v-if="filteredProfiles.length === 0"
+        title="No candidate profiles yet"
+        description="Create a profile or import the sample JSON to start matching jobs and generating resumes."
+        icon="pi-user"
+      >
+        <template #actions>
           <Button label="Create Profile" icon="pi pi-plus" @click="openCreateDialog" />
           <Button label="Import Sample" icon="pi pi-upload" severity="secondary" outlined @click="openImportDialog" />
-        </div>
-      </div>
+        </template>
+      </EmptyState>
 
       <DataTable
         v-else
@@ -343,9 +350,13 @@ import {
   listProfiles,
   updateProfile,
 } from '@/modules/candidate-profile/services/candidateProfilesApi'
+import EmptyState from '@/shared/components/EmptyState.vue'
+import ErrorState from '@/shared/components/ErrorState.vue'
 import FormError from '@/shared/components/FormError.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
+import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 
 interface FormExperience extends CandidateExperience {
@@ -412,6 +423,7 @@ const formError = ref('')
 const importError = ref('')
 const importBackendError = ref('')
 const query = ref('')
+const debouncedQuery = useDebouncedValue(query, 250)
 const profiles = ref<CandidateProfile[]>([])
 const selectedProfile = ref<CandidateProfile | null>(null)
 const editingProfileId = ref<number | null>(null)
@@ -426,7 +438,7 @@ const keySeed = ref(1)
 const form = reactive<CandidateProfileFormState>(createDefaultForm())
 
 const filteredProfiles = computed(() => {
-  const search = query.value.trim().toLowerCase()
+  const search = debouncedQuery.value.trim().toLowerCase()
 
   return profiles.value.filter((profile) => {
     if (!search) {

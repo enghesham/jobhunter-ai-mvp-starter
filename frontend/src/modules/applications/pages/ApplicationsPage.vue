@@ -6,11 +6,15 @@
       description="Track application status, notes, and related profile/job context after matching and resume generation."
     />
 
-    <div v-if="pageError" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ pageError }}
-    </div>
+    <ErrorState v-if="pageError" title="Applications unavailable" :message="pageError">
+      <template #actions>
+        <Button label="Retry" icon="pi pi-refresh" @click="loadApplications" />
+      </template>
+    </ErrorState>
 
-    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+    <SkeletonTable v-if="loading" :columns="6" />
+
+    <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-1 flex-col gap-3 md:flex-row">
           <IconField class="w-full md:max-w-sm">
@@ -31,16 +35,27 @@
         <Button label="New Application" icon="pi pi-plus" @click="openCreateDialog" />
       </div>
 
+      <EmptyState
+        v-if="filteredApplications.length === 0"
+        title="No applications tracked yet"
+        description="Create an application manually here, or generate a resume from the Jobs page and create one from there."
+        icon="pi-send"
+      >
+        <template #actions>
+          <Button label="Create Application" icon="pi pi-plus" @click="openCreateDialog" />
+          <Button label="Go to Jobs" icon="pi pi-briefcase" severity="secondary" outlined @click="goToJobs" />
+        </template>
+      </EmptyState>
+
       <DataTable
+        v-else
         :value="filteredApplications"
-        :loading="loading"
         data-key="id"
         paginator
         :rows="10"
         class="mt-6"
         striped-rows
         responsive-layout="scroll"
-        empty-message="No applications found."
       >
         <Column header="Job Title">
           <template #body="{ data }">
@@ -273,6 +288,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import { useRouter } from 'vue-router'
 
 import type { CandidateProfile } from '@/modules/candidate-profile/types'
 import type { Job } from '@/modules/jobs/types'
@@ -286,9 +302,13 @@ import {
   listApplications,
   updateApplication,
 } from '@/modules/applications/services/applicationsApi'
+import EmptyState from '@/shared/components/EmptyState.vue'
+import ErrorState from '@/shared/components/ErrorState.vue'
 import FormError from '@/shared/components/FormError.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
+import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 
 interface ApplicationFormState {
@@ -300,6 +320,7 @@ interface ApplicationFormState {
 
 const toast = useToast()
 const confirm = useConfirm()
+const router = useRouter()
 
 const statusOptions: Array<{ label: string; value: ApplicationStatus }> = [
   { label: 'Draft', value: 'draft' },
@@ -318,6 +339,7 @@ const detailsLoading = ref(false)
 const pageError = ref('')
 const formError = ref('')
 const query = ref('')
+const debouncedQuery = useDebouncedValue(query, 250)
 const statusFilter = ref<'all' | ApplicationStatus>('all')
 const applications = ref<Application[]>([])
 const jobs = ref<Job[]>([])
@@ -337,7 +359,7 @@ const form = reactive<ApplicationFormState>({
 })
 
 const filteredApplications = computed(() => {
-  const search = query.value.trim().toLowerCase()
+    const search = debouncedQuery.value.trim().toLowerCase()
 
   return applications.value.filter((application) => {
     const matchesStatus = statusFilter.value === 'all' || application.status === statusFilter.value
@@ -569,6 +591,10 @@ function resumePreviewUrl(application: Application): string | null {
 
 function openUrl(url: string): void {
   window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function goToJobs(): void {
+  void router.push('/jobs')
 }
 
 function formatDate(value?: string | null): string {

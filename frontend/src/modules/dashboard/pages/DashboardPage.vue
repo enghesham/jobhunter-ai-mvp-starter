@@ -6,11 +6,20 @@
       description="A quick operational snapshot of sources, jobs, and pipeline progress. Missing endpoints degrade to safe defaults."
     />
 
-    <div v-if="errorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      {{ errorMessage }}
+    <ErrorState v-if="errorMessage" title="Dashboard unavailable" :message="errorMessage">
+      <template #actions>
+        <Button label="Retry" icon="pi pi-refresh" @click="loadDashboard" />
+      </template>
+    </ErrorState>
+
+    <div v-if="loading" class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <article v-for="index in 5" :key="index" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+        <Skeleton height="1rem" width="55%" class="rounded-lg" />
+        <Skeleton height="2.2rem" width="35%" class="mt-4 rounded-lg" />
+      </article>
     </div>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <article
         v-for="stat in stats"
         :key="stat.label"
@@ -43,10 +52,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import Button from 'primevue/button'
+import Skeleton from 'primevue/skeleton'
 
 import api from '@/app/services/api'
 import { listJobSources } from '@/modules/job-sources/services/jobSourcesApi'
 import { listJobs } from '@/modules/jobs/services/jobsApi'
+import ErrorState from '@/shared/components/ErrorState.vue'
 import PageCard from '@/shared/components/PageCard.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
 import { extractCollection, getApiErrorMessage, getCollectionTotal } from '@/shared/utils/api'

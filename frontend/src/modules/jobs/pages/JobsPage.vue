@@ -6,11 +6,16 @@
       description="Review ingested jobs, run analysis and matching, and generate tailored resumes from the same workspace."
     />
 
-    <div v-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ errorMessage }}
-    </div>
+    <ErrorState v-if="errorMessage" title="Jobs unavailable" :message="errorMessage">
+      <template #actions>
+        <Button label="Retry" icon="pi pi-refresh" @click="loadJobs" />
+        <Button label="Go to Job Sources" icon="pi pi-database" severity="secondary" outlined @click="router.push('/job-sources')" />
+      </template>
+    </ErrorState>
 
-    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+    <SkeletonTable v-if="loading" :columns="5" />
+
+    <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <IconField class="w-full lg:max-w-sm">
           <InputIcon class="pi pi-search" />
@@ -22,16 +27,26 @@
         </div>
       </div>
 
+      <EmptyState
+        v-if="filteredJobs.length === 0"
+        title="No jobs available"
+        description="Ingest jobs from the Job Sources page to start analysis, matching, and resume generation."
+        icon="pi-briefcase"
+      >
+        <template #actions>
+          <Button label="Go to Job Sources" icon="pi pi-database" @click="router.push('/job-sources')" />
+        </template>
+      </EmptyState>
+
       <DataTable
+        v-else
         :value="filteredJobs"
-        :loading="loading"
         data-key="id"
         paginator
         :rows="10"
         class="mt-6"
         striped-rows
         responsive-layout="scroll"
-        empty-message="No jobs available."
       >
         <Column field="title" header="Title">
           <template #body="{ data }">
@@ -387,9 +402,13 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 
+import EmptyState from '@/shared/components/EmptyState.vue'
+import ErrorState from '@/shared/components/ErrorState.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import { createApplication } from '@/modules/applications/services/applicationsApi'
 import PageHeader from '@/shared/components/PageHeader.vue'
+import SkeletonTable from '@/shared/components/SkeletonTable.vue'
+import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { copyText } from '@/shared/utils/clipboard'
 import { getApiErrorMessage, getCollectionTotal } from '@/shared/utils/api'
 import {
@@ -412,6 +431,7 @@ const detailsLoading = ref(false)
 const profilesLoading = ref(false)
 const errorMessage = ref('')
 const query = ref('')
+const debouncedQuery = useDebouncedValue(query, 250)
 const jobs = ref<Job[]>([])
 const totalJobs = ref(0)
 const detailsDialogVisible = ref(false)
@@ -435,7 +455,7 @@ const actionLoading = ref({
 })
 
 const filteredJobs = computed(() => {
-  const search = query.value.trim().toLowerCase()
+  const search = debouncedQuery.value.trim().toLowerCase()
 
   return jobs.value.filter((job) => {
     if (!search) {
@@ -544,6 +564,7 @@ async function startProfileAction(actionType: Exclude<PendingActionType, null>, 
     if (profiles.value.length === 0) {
       profileSelectionState.value = 'none'
       profileDialogVisible.value = true
+      toast.add({ severity: 'warn', summary: 'Profile required', detail: 'Create a candidate profile before matching or generating a resume.', life: 4000 })
       return
     }
 

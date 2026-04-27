@@ -6,17 +6,17 @@
       description="The backend does not expose a dedicated matches listing endpoint yet, so this page stays read-only for now."
     />
 
-    <PageCard
-      eyebrow="Backend Limitation"
-      title="Matches Will Appear After Running Match From Jobs"
-      description="Use the Jobs screen to run Match on a specific job. The result is available immediately in the job action dialog, but there is no GET /jobhunter/matches endpoint yet for a standalone list page."
+    <EmptyState
+      title="No standalone matches view yet"
+      description="Run Match from the Jobs page. The result appears immediately there, but the backend still does not expose a dedicated matches listing endpoint."
+      icon="pi-star"
     >
-      <div class="flex flex-wrap gap-3">
+      <template #actions>
         <RouterLink to="/jobs">
           <Button label="Go to Jobs" icon="pi pi-briefcase" />
         </RouterLink>
-      </div>
-    </PageCard>
+      </template>
+    </EmptyState>
   </div>
 </template>
 
@@ -24,6 +24,6 @@
 import Button from 'primevue/button'
 import { RouterLink } from 'vue-router'
 
-import PageCard from '@/shared/components/PageCard.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
 </script>

@@ -63,6 +63,18 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
     return payload.message
   }
 
+  if (axiosError.response?.status === 403) {
+    return 'You do not have permission to perform this action.'
+  }
+
+  if (axiosError.response && axiosError.response.status >= 500) {
+    return 'The server encountered an error. Please retry shortly.'
+  }
+
+  if (axiosError.code === 'ECONNABORTED' || !axiosError.response) {
+    return 'The request could not reach the server. Check your connection and retry.'
+  }
+
   return fallback
 }
 
