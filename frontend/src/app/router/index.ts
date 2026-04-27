@@ -9,9 +9,9 @@ import DashboardPage from '@/modules/dashboard/pages/DashboardPage.vue'
 import JobsPage from '@/modules/jobs/pages/JobsPage.vue'
 import JobSourcesPage from '@/modules/job-sources/pages/JobSourcesPage.vue'
 import LoginPage from '@/modules/auth/pages/LoginPage.vue'
-import MatchesPage from '@/modules/matches/MatchesPage.vue'
+import MatchesPage from '@/modules/matches/pages/MatchesPage.vue'
 import RegisterPage from '@/modules/auth/pages/RegisterPage.vue'
-import ResumesPage from '@/modules/resumes/ResumesPage.vue'
+import ResumesPage from '@/modules/resumes/pages/ResumesPage.vue'
 import SettingsPage from '@/modules/settings/SettingsPage.vue'
 
 const router = createRouter({
