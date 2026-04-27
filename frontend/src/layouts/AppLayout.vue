@@ -1,22 +1,28 @@
 <template>
   <div class="flex min-h-screen">
-    <aside class="hidden w-72 flex-col border-r border-slate-200 bg-slate-950 px-5 py-6 text-slate-100 lg:flex">
+    <aside class="hidden w-76 flex-col border-r border-slate-200 bg-slate-950 px-5 py-6 text-slate-100 lg:flex">
       <div class="mb-8">
         <p class="text-xs uppercase tracking-[0.3em] text-sky-300">JobHunter AI</p>
         <h1 class="mt-2 text-2xl font-semibold">Control Panel</h1>
       </div>
 
-      <nav class="flex-1 space-y-2">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-          active-class="bg-sky-500/20 text-white ring-1 ring-sky-400/40"
-        >
-          <i :class="['pi text-base', item.icon]" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+      <nav class="flex-1 space-y-6">
+        <section v-for="section in navSections" :key="section.label">
+          <p class="mb-3 px-4 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{{ section.label }}</p>
+
+          <div class="space-y-2">
+            <RouterLink
+              v-for="item in section.items"
+              :key="item.to"
+              :to="item.to"
+              class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
+              :class="isActiveRoute(item.to) ? 'bg-sky-500/20 text-white ring-1 ring-sky-400/40' : ''"
+            >
+              <i :class="['pi text-base', item.icon]" />
+              <span>{{ item.label }}</span>
+            </RouterLink>
+          </div>
+        </section>
       </nav>
     </aside>
 
@@ -67,15 +73,32 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: 'pi-home' },
-  { label: 'Job Sources', to: '/job-sources', icon: 'pi-database' },
-  { label: 'Jobs', to: '/jobs', icon: 'pi-briefcase' },
-  { label: 'Candidate Profile', to: '/candidate-profile', icon: 'pi-user' },
-  { label: 'Matches', to: '/matches', icon: 'pi-star' },
-  { label: 'Resumes', to: '/resumes', icon: 'pi-file-edit' },
-  { label: 'Applications', to: '/applications', icon: 'pi-send' },
-  { label: 'Settings', to: '/settings', icon: 'pi-cog' },
+const navSections = [
+  {
+    label: 'Main',
+    items: [{ label: 'Dashboard', to: '/dashboard', icon: 'pi-home' }],
+  },
+  {
+    label: 'Job Management',
+    items: [
+      { label: 'Job Sources', to: '/job-sources', icon: 'pi-database' },
+      { label: 'Jobs', to: '/jobs', icon: 'pi-briefcase' },
+      { label: 'Matches', to: '/matches', icon: 'pi-star' },
+      { label: 'Resumes', to: '/resumes', icon: 'pi-file-edit' },
+    ],
+  },
+  {
+    label: 'Candidate',
+    items: [{ label: 'Candidate Profile', to: '/candidate-profile', icon: 'pi-user' }],
+  },
+  {
+    label: 'Applications',
+    items: [{ label: 'Applications', to: '/applications', icon: 'pi-send' }],
+  },
+  {
+    label: 'Settings',
+    items: [{ label: 'Settings', to: '/settings', icon: 'pi-cog' }],
+  },
 ]
 
 const pageTitle = computed(() => String(route.meta.title ?? 'Workspace'))
@@ -86,5 +109,9 @@ const userInitial = computed(() => userName.value.charAt(0).toUpperCase())
 async function handleLogout(): Promise<void> {
   await authStore.logout()
   await router.push('/login')
+}
+
+function isActiveRoute(target: string): boolean {
+  return route.path === target || route.path.startsWith(`${target}/`)
 }
 </script>
