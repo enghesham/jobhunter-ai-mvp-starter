@@ -5,12 +5,26 @@ return [
     'ai_provider' => env('JOBHUNTER_AI_PROVIDER', 'null'),
     'openai_api_key' => env('OPENAI_API_KEY'),
     'ai_timeout' => env('JOBHUNTER_AI_TIMEOUT', 30),
+    'ai_base_url' => env('JOBHUNTER_AI_BASE_URL'),
     'scan_hours' => env('JOBHUNTER_SCAN_HOURS', 6),
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
     'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
     'pdf_driver' => env('JOBHUNTER_PDF_DRIVER', 'html'),
     'openai' => [
         'model' => env('JOBHUNTER_OPENAI_MODEL', 'gpt-4.1-mini'),
+    ],
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('JOBHUNTER_GEMINI_MODEL', 'gemini-2.5-flash'),
+    ],
+    'local_llm' => [
+        'base_url' => env('JOBHUNTER_LOCAL_LLM_BASE_URL', 'http://127.0.0.1:11434/v1'),
+        'model' => env('JOBHUNTER_LOCAL_LLM_MODEL', 'llama3.1'),
+        'api_key' => env('JOBHUNTER_LOCAL_LLM_API_KEY'),
+    ],
+    'python_microservice' => [
+        'base_url' => env('JOBHUNTER_PYTHON_AI_SERVICE_URL'),
+        'api_key' => env('JOBHUNTER_PYTHON_AI_SERVICE_KEY'),
     ],
     'bedrock' => [
         'model' => env('JOBHUNTER_BEDROCK_MODEL', 'anthropic.claude-3-5-sonnet'),

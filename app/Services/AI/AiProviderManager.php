@@ -4,14 +4,20 @@ namespace App\Services\AI;
 
 use App\Services\AI\Contracts\AiProviderInterface;
 use App\Services\AI\Providers\BedrockProvider;
+use App\Services\AI\Providers\GeminiProvider;
+use App\Services\AI\Providers\LocalLlmProvider;
 use App\Services\AI\Providers\NullAiProvider;
 use App\Services\AI\Providers\OpenAiProvider;
+use App\Services\AI\Providers\PythonMicroserviceProvider;
 
 class AiProviderManager
 {
     public function __construct(
         private readonly NullAiProvider $nullProvider,
         private readonly OpenAiProvider $openAiProvider,
+        private readonly GeminiProvider $geminiProvider,
+        private readonly LocalLlmProvider $localLlmProvider,
+        private readonly PythonMicroserviceProvider $pythonMicroserviceProvider,
         private readonly BedrockProvider $bedrockProvider,
     ) {
     }
@@ -24,6 +30,9 @@ class AiProviderManager
 
         return match ((string) config('jobhunter.ai_provider', 'null')) {
             'openai' => $this->openAiProvider,
+            'gemini' => $this->geminiProvider,
+            'local', 'local_llm', 'ollama' => $this->localLlmProvider,
+            'python', 'python_microservice', 'fastapi' => $this->pythonMicroserviceProvider,
             'bedrock' => $this->bedrockProvider,
             default => $this->nullProvider,
         };
