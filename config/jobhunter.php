@@ -17,6 +17,11 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('JOBHUNTER_GEMINI_MODEL', 'gemini-2.5-flash'),
     ],
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+        'model' => env('JOBHUNTER_GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'base_url' => env('JOBHUNTER_GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
+    ],
     'local_llm' => [
         'base_url' => env('JOBHUNTER_LOCAL_LLM_BASE_URL', 'http://127.0.0.1:11434/v1'),
         'model' => env('JOBHUNTER_LOCAL_LLM_MODEL', 'llama3.1'),

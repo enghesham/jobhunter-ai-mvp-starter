@@ -36,6 +36,10 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
     ],
 
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+    ],
+
     'bedrock' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

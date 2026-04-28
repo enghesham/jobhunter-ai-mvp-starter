@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\AI\AiProviderManager;
 use App\Services\AI\Providers\BedrockProvider;
 use App\Services\AI\Providers\GeminiProvider;
+use App\Services\AI\Providers\GroqProvider;
 use App\Services\AI\Providers\LocalLlmProvider;
 use App\Services\AI\Providers\NullAiProvider;
 use App\Services\AI\Providers\OpenAiProvider;
@@ -22,6 +23,7 @@ class AiProviderManagerTest extends TestCase
             new NullAiProvider(),
             app(OpenAiProvider::class),
             app(GeminiProvider::class),
+            app(GroqProvider::class),
             app(LocalLlmProvider::class),
             app(PythonMicroserviceProvider::class),
             app(BedrockProvider::class),
@@ -50,6 +52,16 @@ class AiProviderManagerTest extends TestCase
         $this->assertSame('local_llm', $manager->driver()->name());
     }
 
+    public function test_it_returns_groq_provider_when_configured(): void
+    {
+        config()->set('jobhunter.ai_enabled', true);
+        config()->set('jobhunter.ai_provider', 'groq');
+
+        $manager = $this->makeManager();
+
+        $this->assertSame('groq', $manager->driver()->name());
+    }
+
     public function test_it_returns_python_microservice_provider_for_python_aliases(): void
     {
         config()->set('jobhunter.ai_enabled', true);
@@ -66,6 +78,7 @@ class AiProviderManagerTest extends TestCase
             new NullAiProvider(),
             app(OpenAiProvider::class),
             app(GeminiProvider::class),
+            app(GroqProvider::class),
             app(LocalLlmProvider::class),
             app(PythonMicroserviceProvider::class),
             app(BedrockProvider::class),
