@@ -3,6 +3,7 @@
 return [
     'ai_enabled' => filter_var(env('JOBHUNTER_AI_ENABLED', false), FILTER_VALIDATE_BOOL),
     'ai_provider' => env('JOBHUNTER_AI_PROVIDER', 'null'),
+    'ai_provider_chain' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_AI_PROVIDER_CHAIN', ''))))),
     'openai_api_key' => env('OPENAI_API_KEY'),
     'ai_timeout' => env('JOBHUNTER_AI_TIMEOUT', 30),
     'ai_base_url' => env('JOBHUNTER_AI_BASE_URL'),

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\AI\AiProviderManager;
+use App\Services\AI\Providers\ChainAiProvider;
 use App\Services\AI\Providers\BedrockProvider;
 use App\Services\AI\Providers\GeminiProvider;
 use App\Services\AI\Providers\GroqProvider;
@@ -36,6 +37,7 @@ class AiProviderManagerTest extends TestCase
     {
         config()->set('jobhunter.ai_enabled', true);
         config()->set('jobhunter.ai_provider', 'gemini');
+        config()->set('jobhunter.ai_provider_chain', []);
 
         $manager = $this->makeManager();
 
@@ -46,6 +48,7 @@ class AiProviderManagerTest extends TestCase
     {
         config()->set('jobhunter.ai_enabled', true);
         config()->set('jobhunter.ai_provider', 'ollama');
+        config()->set('jobhunter.ai_provider_chain', []);
 
         $manager = $this->makeManager();
 
@@ -56,6 +59,7 @@ class AiProviderManagerTest extends TestCase
     {
         config()->set('jobhunter.ai_enabled', true);
         config()->set('jobhunter.ai_provider', 'groq');
+        config()->set('jobhunter.ai_provider_chain', []);
 
         $manager = $this->makeManager();
 
@@ -66,10 +70,24 @@ class AiProviderManagerTest extends TestCase
     {
         config()->set('jobhunter.ai_enabled', true);
         config()->set('jobhunter.ai_provider', 'python_microservice');
+        config()->set('jobhunter.ai_provider_chain', []);
 
         $manager = $this->makeManager();
 
         $this->assertSame('python_microservice', $manager->driver()->name());
+    }
+
+    public function test_it_returns_chain_provider_when_chain_is_configured(): void
+    {
+        config()->set('jobhunter.ai_enabled', true);
+        config()->set('jobhunter.ai_provider', 'openai');
+        config()->set('jobhunter.ai_provider_chain', ['gemini', 'groq']);
+
+        $manager = $this->makeManager();
+        $driver = $manager->driver();
+
+        $this->assertInstanceOf(ChainAiProvider::class, $driver);
+        $this->assertSame('chain(gemini,groq)', $driver->name());
     }
 
     private function makeManager(): AiProviderManager

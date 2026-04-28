@@ -4,6 +4,7 @@ namespace App\Services\AI;
 
 use App\Services\AI\Contracts\AiProviderInterface;
 use App\Services\AI\Providers\BedrockProvider;
+use App\Services\AI\Providers\ChainAiProvider;
 use App\Services\AI\Providers\GeminiProvider;
 use App\Services\AI\Providers\GroqProvider;
 use App\Services\AI\Providers\LocalLlmProvider;
@@ -30,6 +31,12 @@ class AiProviderManager
             return $this->nullProvider;
         }
 
+        $chain = $this->configuredChain();
+
+        if ($chain !== []) {
+            return new ChainAiProvider($chain);
+        }
+
         return match ((string) config('jobhunter.ai_provider', 'null')) {
             'openai' => $this->openAiProvider,
             'gemini' => $this->geminiProvider,
@@ -38,6 +45,40 @@ class AiProviderManager
             'python', 'python_microservice', 'fastapi' => $this->pythonMicroserviceProvider,
             'bedrock' => $this->bedrockProvider,
             default => $this->nullProvider,
+        };
+    }
+
+    /**
+     * @return array<int, AiProviderInterface>
+     */
+    private function configuredChain(): array
+    {
+        $keys = config('jobhunter.ai_provider_chain', []);
+
+        if (! is_array($keys) || $keys === []) {
+            return [];
+        }
+
+        return collect($keys)
+            ->map(fn (mixed $key): ?AiProviderInterface => $this->providerFor((string) $key))
+            ->filter()
+            ->reject(fn (AiProviderInterface $provider): bool => $provider->name() === 'null')
+            ->unique(fn (AiProviderInterface $provider): string => $provider->name())
+            ->values()
+            ->all();
+    }
+
+    private function providerFor(string $key): ?AiProviderInterface
+    {
+        return match ($key) {
+            'openai' => $this->openAiProvider,
+            'gemini' => $this->geminiProvider,
+            'groq' => $this->groqProvider,
+            'local', 'local_llm', 'ollama' => $this->localLlmProvider,
+            'python', 'python_microservice', 'fastapi' => $this->pythonMicroserviceProvider,
+            'bedrock' => $this->bedrockProvider,
+            'null' => $this->nullProvider,
+            default => null,
         };
     }
 }
