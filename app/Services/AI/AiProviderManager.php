@@ -27,25 +27,31 @@ class AiProviderManager
 
     public function driver(): AiProviderInterface
     {
+        $providers = $this->activeProviders();
+
+        if (count($providers) > 1) {
+            return new ChainAiProvider($providers);
+        }
+
+        return $providers[0] ?? $this->nullProvider;
+    }
+
+    /**
+     * @return array<int, AiProviderInterface>
+     */
+    public function activeProviders(): array
+    {
         if (! config('jobhunter.ai_enabled', false)) {
-            return $this->nullProvider;
+            return [$this->nullProvider];
         }
 
         $chain = $this->configuredChain();
 
         if ($chain !== []) {
-            return new ChainAiProvider($chain);
+            return $chain;
         }
 
-        return match ((string) config('jobhunter.ai_provider', 'null')) {
-            'openai' => $this->openAiProvider,
-            'gemini' => $this->geminiProvider,
-            'groq' => $this->groqProvider,
-            'local', 'local_llm', 'ollama' => $this->localLlmProvider,
-            'python', 'python_microservice', 'fastapi' => $this->pythonMicroserviceProvider,
-            'bedrock' => $this->bedrockProvider,
-            default => $this->nullProvider,
-        };
+        return [$this->providerFor((string) config('jobhunter.ai_provider', 'null')) ?? $this->nullProvider];
     }
 
     /**
@@ -68,7 +74,7 @@ class AiProviderManager
             ->all();
     }
 
-    private function providerFor(string $key): ?AiProviderInterface
+    public function providerFor(string $key): ?AiProviderInterface
     {
         return match ($key) {
             'openai' => $this->openAiProvider,

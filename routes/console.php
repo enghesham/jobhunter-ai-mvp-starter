@@ -9,6 +9,7 @@ use App\Jobs\ScanJobSourceJob;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
+use App\Services\AI\AiHealthInspector;
 use App\Services\JobIngestion\JobSourceScanService;
 
 Artisan::command('inspire', function () {
@@ -128,6 +129,39 @@ Artisan::command('jobhunter:match-pending', function () {
 
     return self::SUCCESS;
 })->purpose('Match analyzed jobs that do not have a match yet');
+
+Artisan::command('jobhunter:ai-health {--json}', function () {
+    $report = app(AiHealthInspector::class)->inspect();
+
+    if ($this->option('json')) {
+        $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return self::SUCCESS;
+    }
+
+    $this->info('JobHunter AI Health');
+    $this->line('AI enabled: '.($report['ai_enabled'] ? 'yes' : 'no'));
+    $this->line('Selection mode: '.$report['selection_mode']);
+    $this->line('Configured provider: '.$report['configured_provider']);
+    $this->line('Configured chain: '.($report['configured_chain'] === [] ? 'none' : implode(' -> ', $report['configured_chain'])));
+    $this->line('Resolved driver: '.$report['resolved_driver']);
+    $this->newLine();
+
+    $rows = [];
+
+    foreach ($report['providers'] as $provider) {
+        $rows[] = [
+            $provider['name'],
+            $provider['model'] ?: 'n/a',
+            $provider['ready'] ? 'ready' : 'not ready',
+            $provider['issues'] === [] ? '-' : implode(' | ', $provider['issues']),
+        ];
+    }
+
+    $this->table(['Provider', 'Model', 'Status', 'Issues'], $rows);
+
+    return self::SUCCESS;
+})->purpose('Inspect configured AI provider readiness and fallback chain');
 
 Schedule::command('jobhunter:scan-sources')
     ->cron('0 */'.max(1, (int) config('jobhunter.scan_hours', 6)).' * * *')
