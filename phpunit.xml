@@ -33,5 +33,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="JOBHUNTER_AI_ENABLED" value="false"/>
+        <env name="JOBHUNTER_AI_PROVIDER" value="null"/>
+        <env name="JOBHUNTER_AI_PROVIDER_CHAIN" value=""/>
     </php>
 </phpunit>

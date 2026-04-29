@@ -14,6 +14,11 @@ return [
     'openai' => [
         'model' => env('JOBHUNTER_OPENAI_MODEL', 'gpt-4.1-mini'),
     ],
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'model' => env('JOBHUNTER_OPENROUTER_MODEL', 'openrouter/auto'),
+        'base_url' => env('JOBHUNTER_OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+    ],
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('JOBHUNTER_GEMINI_MODEL', 'gemini-2.5-flash'),

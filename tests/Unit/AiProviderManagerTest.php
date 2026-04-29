@@ -10,6 +10,7 @@ use App\Services\AI\Providers\GroqProvider;
 use App\Services\AI\Providers\LocalLlmProvider;
 use App\Services\AI\Providers\NullAiProvider;
 use App\Services\AI\Providers\OpenAiProvider;
+use App\Services\AI\Providers\OpenRouterProvider;
 use App\Services\AI\Providers\PythonMicroserviceProvider;
 use Tests\TestCase;
 
@@ -23,6 +24,7 @@ class AiProviderManagerTest extends TestCase
         $manager = new AiProviderManager(
             new NullAiProvider(),
             app(OpenAiProvider::class),
+            app(OpenRouterProvider::class),
             app(GeminiProvider::class),
             app(GroqProvider::class),
             app(LocalLlmProvider::class),
@@ -42,6 +44,17 @@ class AiProviderManagerTest extends TestCase
         $manager = $this->makeManager();
 
         $this->assertSame('gemini', $manager->driver()->name());
+    }
+
+    public function test_it_returns_openrouter_provider_when_configured(): void
+    {
+        config()->set('jobhunter.ai_enabled', true);
+        config()->set('jobhunter.ai_provider', 'openrouter');
+        config()->set('jobhunter.ai_provider_chain', []);
+
+        $manager = $this->makeManager();
+
+        $this->assertSame('openrouter', $manager->driver()->name());
     }
 
     public function test_it_returns_local_llm_provider_for_local_aliases(): void
@@ -95,6 +108,7 @@ class AiProviderManagerTest extends TestCase
         return new AiProviderManager(
             new NullAiProvider(),
             app(OpenAiProvider::class),
+            app(OpenRouterProvider::class),
             app(GeminiProvider::class),
             app(GroqProvider::class),
             app(LocalLlmProvider::class),

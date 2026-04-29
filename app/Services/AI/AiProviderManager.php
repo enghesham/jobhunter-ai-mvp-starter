@@ -10,6 +10,7 @@ use App\Services\AI\Providers\GroqProvider;
 use App\Services\AI\Providers\LocalLlmProvider;
 use App\Services\AI\Providers\NullAiProvider;
 use App\Services\AI\Providers\OpenAiProvider;
+use App\Services\AI\Providers\OpenRouterProvider;
 use App\Services\AI\Providers\PythonMicroserviceProvider;
 
 class AiProviderManager
@@ -17,6 +18,7 @@ class AiProviderManager
     public function __construct(
         private readonly NullAiProvider $nullProvider,
         private readonly OpenAiProvider $openAiProvider,
+        private readonly OpenRouterProvider $openRouterProvider,
         private readonly GeminiProvider $geminiProvider,
         private readonly GroqProvider $groqProvider,
         private readonly LocalLlmProvider $localLlmProvider,
@@ -78,6 +80,7 @@ class AiProviderManager
     {
         return match ($key) {
             'openai' => $this->openAiProvider,
+            'openrouter' => $this->openRouterProvider,
             'gemini' => $this->geminiProvider,
             'groq' => $this->groqProvider,
             'local', 'local_llm', 'ollama' => $this->localLlmProvider,

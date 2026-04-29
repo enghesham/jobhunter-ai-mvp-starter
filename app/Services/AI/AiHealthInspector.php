@@ -53,6 +53,7 @@ class AiHealthInspector
     {
         return match ($provider) {
             'openai' => $this->missing((string) config('jobhunter.openai_api_key', ''), 'OPENAI_API_KEY'),
+            'openrouter' => $this->openRouterIssues(),
             'gemini' => $this->missing((string) config('jobhunter.gemini.api_key', ''), 'GEMINI_API_KEY'),
             'groq' => $this->groqIssues(),
             'local_llm' => $this->missing((string) config('jobhunter.local_llm.base_url', ''), 'JOBHUNTER_LOCAL_LLM_BASE_URL'),
@@ -76,6 +77,17 @@ class AiHealthInspector
         return array_merge(
             $this->missing((string) config('jobhunter.groq.api_key', ''), 'GROQ_API_KEY'),
             $this->missing((string) config('jobhunter.groq.base_url', ''), 'JOBHUNTER_GROQ_BASE_URL')
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function openRouterIssues(): array
+    {
+        return array_merge(
+            $this->missing((string) config('jobhunter.openrouter.api_key', ''), 'OPENROUTER_API_KEY'),
+            $this->missing((string) config('jobhunter.openrouter.base_url', ''), 'JOBHUNTER_OPENROUTER_BASE_URL')
         );
     }
 
