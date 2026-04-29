@@ -1,9 +1,301 @@
 # JobHunter AI MVP
 
-Laravel-based backend for collecting jobs, analyzing them, matching them to a candidate profile, generating tailored resume drafts, and tracking applications.
+JobHunter AI MVP is a Laravel + Vue application for running a focused AI-assisted job search workflow:
 
-## Frontend Setup
-The repository now includes a separate Vue 3 frontend app in [frontend](C:/wamp64/www/jobhunter-ai-mvp-starter/frontend).
+- collect and ingest jobs
+- analyze job descriptions
+- score job fit against a candidate profile
+- generate tailored resume drafts
+- track applications
+
+The project is built to remain usable even when AI is unavailable. AI is the primary quality path, but deterministic fallback stays in place for safety and continuity.
+
+## Product Flow
+
+The current end-to-end flow is:
+
+1. Create a job source
+2. Ingest jobs manually or scan supported sources
+3. Analyze a job
+4. Import or create a candidate profile
+5. Match the job against the profile
+6. Generate a tailored resume
+7. Create and track an application
+
+## Current Scope
+
+### Backend
+- Laravel API with Sanctum authentication
+- Ownership-scoped data per user
+- Job sources CRUD
+- Job ingestion
+- Job analysis
+- Candidate profile CRUD and import
+- Matching with explanation
+- Tailored resume generation
+- Application tracking
+- Queue-friendly jobs and scheduler commands
+
+### Frontend
+- Vue 3 + Vite + TypeScript
+- PrimeVue + Tailwind CSS
+- Auth flow
+- Dashboard
+- Job Sources
+- Jobs
+- Candidate Profiles
+- Matches
+- Resumes
+- Applications
+
+## AI Strategy
+
+The application is designed as `AI-ready`, not `AI-dependent`.
+
+- AI is used for:
+  - job analysis
+  - match explanation
+  - resume tailoring
+- deterministic services remain available as fallback
+- provider failures, invalid JSON, timeouts, and unavailable models do not break the workflow
+
+### Current AI Behavior
+
+Each AI operation follows this pattern:
+
+1. Build a structured prompt
+2. Call the configured AI provider
+3. Validate and normalize the JSON result
+4. Persist enriched metadata
+5. Fall back to deterministic logic if AI fails
+
+### AI Metadata
+
+Analysis, match explanation, and resumes now store metadata such as:
+
+- `ai_provider`
+- `ai_model`
+- `prompt_version`
+- `ai_duration_ms`
+- `fallback_used`
+- `ai_generated_at`
+- `ai_confidence_score`
+
+### AI Caching
+
+The project caches AI-derived results using an `input_hash` and `prompt_version`.
+
+- repeated job analysis with unchanged input reuses the stored record
+- repeated resume generation with unchanged input and same version reuses the stored version
+- repeated match explanation with unchanged input reuses the stored explanation
+
+### Force Re-run
+
+Caching can be bypassed when needed.
+
+Use `force=true` when you want to:
+
+- test a changed prompt
+- test a changed model
+- refresh a stale result
+- verify a provider change without changing input data
+
+Supported endpoints:
+
+- `POST /api/jobhunter/jobs/{job}/analyze`
+- `POST /api/jobhunter/jobs/{job}/match`
+- `POST /api/jobhunter/jobs/{job}/generate-resume`
+
+Example:
+
+```json
+{
+  "profile_id": 1,
+  "force": true
+}
+```
+
+## AI Provider Architecture
+
+The project uses an internal provider contract:
+
+- `AiProviderInterface`
+- `AiProviderManager`
+
+Implemented providers:
+
+- `NullAiProvider`
+- `OpenAiProvider`
+- `OpenRouterProvider`
+- `GeminiProvider`
+- `GroqProvider`
+- `LocalLlmProvider`
+- `PythonMicroserviceProvider`
+- `BedrockProvider` stub
+
+This keeps the business layer independent from any one provider. The application can later use hosted APIs, local models, or a Python microservice without rewriting the analysis, matching, or resume services.
+
+### Recommended Current Provider
+
+For a lightweight machine and free/cheap initial usage, the current recommended setup is:
+
+- `openrouter` as the active provider
+- deterministic fallback enabled by design
+
+Local LLM inference is supported, but it is not recommended as the primary provider on lower-spec hardware.
+
+## Repository Structure
+
+### Backend
+
+- `app/Modules/*` domain modules and HTTP layer
+- `app/Services/*` business services and AI integration
+- `app/Jobs/*` queue-friendly background jobs
+- `config/jobhunter.php` project-specific configuration
+- `routes/api.php` API surface
+- `routes/console.php` artisan commands and scheduler
+
+### Frontend
+
+The frontend lives in `frontend/` at the repository root.
+
+Key frontend areas:
+
+- `frontend/src/app`
+- `frontend/src/layouts`
+- `frontend/src/modules`
+- `frontend/src/shared`
+
+## API Surface
+
+Two API surfaces currently exist:
+
+- `/api/...`
+- `/api/jobhunter/...`
+
+They expose the same business endpoints.
+
+For new frontend and client work, use the namespaced surface:
+
+- `/api/jobhunter/...`
+
+That is the path the current frontend uses.
+
+### Auth Endpoints
+
+Public:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+
+Protected:
+
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+All business endpoints require `auth:sanctum`.
+
+Use bearer tokens:
+
+```http
+Authorization: Bearer <token>
+Accept: application/json
+```
+
+### Main Business Endpoints
+
+- `GET|POST|PUT|DELETE /api/jobhunter/job-sources`
+- `POST /api/jobhunter/job-sources/{id}/scan`
+- `POST /api/jobhunter/job-sources/{id}/ingest`
+- `GET /api/jobhunter/jobs`
+- `GET /api/jobhunter/jobs/{id}`
+- `GET /api/jobhunter/jobs/{id}/analysis`
+- `POST /api/jobhunter/jobs/{id}/analyze`
+- `POST /api/jobhunter/jobs/{id}/match`
+- `GET /api/jobhunter/matches`
+- `GET /api/jobhunter/matches/{id}/explanation`
+- `POST /api/jobhunter/jobs/{id}/generate-resume`
+- `GET /api/jobhunter/resumes`
+- `GET /api/jobhunter/resumes/{id}`
+- `GET|POST|PUT|DELETE /api/jobhunter/candidate-profiles`
+- `POST /api/jobhunter/candidate-profiles/import`
+- `GET|POST|PUT|DELETE /api/jobhunter/applications`
+- `GET|POST|PUT|DELETE /api/jobhunter/answer-templates`
+
+### Response Shape
+
+The API returns normalized JSON responses in this shape:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
+Paginated lists return:
+
+```json
+{
+  "success": true,
+  "data": {
+    "data": [],
+    "links": {},
+    "meta": {}
+  }
+}
+```
+
+## Local Development Setup
+
+### Backend
+
+1. Install dependencies:
+
+```bash
+composer install
+```
+
+2. Create environment:
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+3. Configure database in `.env`
+
+The project works best with PostgreSQL for real usage. Example:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=job_hunter
+DB_USERNAME=postgres
+DB_PASSWORD=root
+```
+
+4. Run database setup:
+
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+5. Link storage:
+
+```bash
+php artisan storage:link
+```
+
+6. Start the backend:
+
+```bash
+php artisan serve
+```
+
+### Frontend Setup
 
 ```bash
 cd frontend
@@ -12,200 +304,170 @@ cp .env.example .env
 npm run dev
 ```
 
-Default frontend API base URL:
+Default frontend API base:
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api
 ```
 
-## Implemented Modules
-- Authentication with Laravel Sanctum
-- Job sources
-- Job ingestion
-- Job analysis with AI provider abstraction and deterministic fallback
-- Candidate profiles
-- Matching
-- Tailored resumes with HTML-first PDF-ready output
-- Applications
+## AI Configuration
 
-## Core API Areas
-- `/api/auth/*`
-- `/api/job-sources`
-- `/api/jobs`
-- `/api/candidate-profiles`
-- `/api/applications`
-- `/api/answer-templates`
-- `/api/jobhunter/*` mirrors the jobhunter-prefixed API surface
-
-All jobhunter/business APIs are protected by `auth:sanctum`.
-
-## Production Setup
-
-### 1. Environment
-Set at minimum:
+### Minimal OpenRouter Setup
 
 ```env
-APP_NAME=JobHunterAI
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://your-domain.example
+JOBHUNTER_AI_ENABLED=true
+JOBHUNTER_AI_PROVIDER=openrouter
+JOBHUNTER_AI_PROVIDER_CHAIN=openrouter
+OPENROUTER_API_KEY=
+JOBHUNTER_OPENROUTER_MODEL=openrouter/auto
+JOBHUNTER_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+JOBHUNTER_AI_TIMEOUT=30
+JOBHUNTER_AI_CACHE_ENABLED=true
+JOBHUNTER_ANALYSIS_PROMPT_VERSION=v1
+JOBHUNTER_MATCH_PROMPT_VERSION=v1
+JOBHUNTER_RESUME_PROMPT_VERSION=v1
+```
 
-DB_CONNECTION=pgsql
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_DATABASE=jobhunter_ai
-DB_USERNAME=postgres
-DB_PASSWORD=secret
+### Disable AI Completely
 
-QUEUE_CONNECTION=database
-CACHE_STORE=database
-SESSION_DRIVER=database
-
+```env
+JOBHUNTER_AI_ENABLED=false
 JOBHUNTER_AI_PROVIDER=null
-OPENAI_API_KEY=
-JOBHUNTER_OPENAI_MODEL=gpt-4.1-mini
-JOBHUNTER_BEDROCK_MODEL=anthropic.claude-3-5-sonnet
-JOBHUNTER_SCAN_HOURS=6
-JOBHUNTER_MATCH_THRESHOLD=75
-JOBHUNTER_ALLOWED_SOURCES=custom,greenhouse,lever
-JOBHUNTER_PDF_DRIVER=html
+JOBHUNTER_AI_PROVIDER_CHAIN=
 ```
 
-If using cookie-based SPA auth, also configure:
+### Optional Providers
 
-```env
-SANCTUM_STATEFUL_DOMAINS=your-frontend.example
-SESSION_DOMAIN=.your-domain.example
-```
+Supported environment variables include:
 
-For token-based API clients, bearer tokens from Sanctum are sufficient.
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `GROQ_API_KEY`
+- `JOBHUNTER_LOCAL_LLM_BASE_URL`
+- `JOBHUNTER_LOCAL_LLM_MODEL`
+- `JOBHUNTER_PYTHON_AI_SERVICE_URL`
+- `JOBHUNTER_PYTHON_AI_SERVICE_KEY`
 
-### 2. Install and Generate
-```bash
-composer install --no-dev --optimize-autoloader
-php artisan key:generate
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
+## Useful Artisan Commands
 
-### 3. Database
-```bash
-php artisan migrate --force
-php artisan db:seed --force
-```
-
-For a clean local verification run:
+### Scanning
 
 ```bash
-php artisan migrate:fresh --seed
+php artisan jobs:scan
+php artisan jobs:scan 1 --sync
+php artisan jobhunter:scan-sources
+php artisan jobhunter:scan-sources --sync
 ```
 
-### 4. Storage
+### Analysis and Matching
+
 ```bash
-php artisan storage:link
+php artisan jobs:analyze 1
+php artisan jobs:match 1 1
+php artisan jobhunter:analyze-pending
+php artisan jobhunter:match-pending
 ```
 
-Make sure the application can write to:
-- `storage/`
-- `bootstrap/cache/`
+### AI Health
 
-### 5. Queues
-This project is queue-friendly. For production:
+```bash
+php artisan jobhunter:ai-health
+php artisan jobhunter:ai-health --json
+```
+
+### Testing
+
+```bash
+php artisan test
+composer test
+```
+
+## Queues and Scheduler
+
+The project is queue-friendly, but most MVP API flows are safe to run synchronously.
+
+### Queue Worker
 
 ```bash
 php artisan queue:work --queue=default --tries=3 --timeout=120
 ```
 
-Recommended:
-- run queue workers under Supervisor/systemd
-- use `QUEUE_CONNECTION=database` or Redis
-- monitor failed jobs
+### Scheduler
 
-### 6. Scheduler
 The scheduler runs:
+
 - `jobhunter:scan-sources` every `JOBHUNTER_SCAN_HOURS`
 
-Production cron entry:
+Production cron:
 
 ```bash
 * * * * * php /path/to/project/artisan schedule:run >> /dev/null 2>&1
 ```
 
-### 7. Authentication
-Public auth endpoints:
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+## Resume Output
 
-Protected auth endpoints:
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
+Resume generation currently supports:
 
-Use bearer tokens:
+- structured tailored content
+- stored HTML output
+- HTML preview via storage
 
-```http
-Authorization: Bearer <sanctum-token>
-```
+Current PDF behavior is HTML-first.
 
-## Queue and Scheduler Commands
+- `HtmlOnlyPdfDriver` is active for MVP
+- Browsershot/Playwright PDF drivers remain stubbed until you enable a real PDF engine
 
-### Scan active sources
-```bash
-php artisan jobhunter:scan-sources
-php artisan jobhunter:scan-sources --sync
-```
+## Ownership and Security
 
-### Analyze pending jobs
-```bash
-php artisan jobhunter:analyze-pending
-```
+- business APIs are protected by Sanctum
+- ownership is enforced in controllers, scoped queries, and policies
+- users only see their own:
+  - job sources
+  - candidate profiles
+  - jobs
+  - matches
+  - resumes
+  - applications
 
-### Match pending jobs
-```bash
-php artisan jobhunter:match-pending
-```
+## Production Notes
 
-### Legacy targeted commands
-```bash
-php artisan jobs:scan
-php artisan jobs:scan 1 --sync
-php artisan jobs:analyze 1
-php artisan jobs:match 1 1
-```
+Recommended production baseline:
 
-## Deployment Checklist
-- Set `APP_ENV=production`
-- Set `APP_DEBUG=false`
-- Configure DB credentials
-- Configure `QUEUE_CONNECTION`
-- Configure `JOBHUNTER_AI_PROVIDER`
-- Configure `OPENAI_API_KEY` only if using OpenAI
-- Run migrations
-- Link storage
-- Start queue workers
-- Start scheduler cron
-- Cache config/routes/views
-- Verify auth token flow
-- Verify storage permissions
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- PostgreSQL
+- queue worker under Supervisor/systemd
+- scheduler enabled
+- writable `storage/` and `bootstrap/cache/`
+- cached config/routes/views
+
+### Production Checklist
+
+- configure environment variables
+- run migrations
+- run seeders if desired
+- link storage
+- run queue worker
+- enable scheduler
+- verify Sanctum token flow
+- verify AI provider health
+- verify file permissions
 
 ## Verification Commands
+
 ```bash
-composer test
 php artisan migrate:fresh --seed
 php artisan route:list
-php artisan queue:work
-```
-
-## Testing
-```bash
-composer test
 php artisan test
-php artisan test --filter=AuthAndOwnershipTest
-php artisan test --filter=ResumeGenerationTest
+php artisan jobhunter:ai-health --json
+cd frontend && npm run build
 ```
 
-## Notes
-- AI provider failures are logged without exposing secrets.
-- AI-heavy endpoints are rate-limited.
-- Ownership is enforced by auth scoping plus policies.
-- Current PDF output is HTML-first. The browsershot/playwright driver is intentionally stubbed until enabled.
+## Notes and Limitations
+
+- duplicate business API surfaces still exist under `/api/...` and `/api/jobhunter/...`
+- AI provider failures are logged safely without exposing secrets
+- AI-heavy endpoints are rate-limited
+- PDF output is still HTML-first unless you enable a real PDF backend
+- `BedrockProvider` remains a stub
+- local PHP in this environment may show an Xdebug DLL warning; this is environment-specific and not a project bug
