@@ -6,9 +6,18 @@ use App\Modules\Jobs\Domain\Models\Job;
 
 class AnalyzeJobPrompt
 {
+    public function version(): string
+    {
+        return (string) config('jobhunter.ai_operations.analysis.prompt_version', 'v1');
+    }
+
     public function build(Job $job): string
     {
         $payload = [
+            'meta' => [
+                'prompt_version' => $this->version(),
+                'operation' => 'analysis',
+            ],
             'job' => [
                 'id' => $job->id,
                 'title' => $job->title,

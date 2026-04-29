@@ -28,6 +28,10 @@ class JobAnalysis extends Model
         'ai_generated_at',
         'ai_confidence_score',
         'ai_raw_response',
+        'prompt_version',
+        'input_hash',
+        'ai_duration_ms',
+        'fallback_used',
         'analyzed_at',
     ];
 
@@ -40,6 +44,7 @@ class JobAnalysis extends Model
         'tech_stack' => 'array',
         'responsibilities' => 'array',
         'ai_generated_at' => 'datetime',
+        'fallback_used' => 'boolean',
         'analyzed_at' => 'datetime',
     ];
 

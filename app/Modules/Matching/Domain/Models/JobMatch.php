@@ -34,12 +34,17 @@ class JobMatch extends Model
         'ai_generated_at',
         'ai_confidence_score',
         'ai_raw_response',
+        'prompt_version',
+        'input_hash',
+        'ai_duration_ms',
+        'fallback_used',
         'matched_at',
     ];
 
     protected $casts = [
         'matched_at' => 'datetime',
         'ai_generated_at' => 'datetime',
+        'fallback_used' => 'boolean',
         'missing_skills' => 'array',
         'strength_areas' => 'array',
         'risk_flags' => 'array',

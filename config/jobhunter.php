@@ -7,6 +7,7 @@ return [
     'openai_api_key' => env('OPENAI_API_KEY'),
     'ai_timeout' => env('JOBHUNTER_AI_TIMEOUT', 30),
     'ai_base_url' => env('JOBHUNTER_AI_BASE_URL'),
+    'ai_cache_enabled' => filter_var(env('JOBHUNTER_AI_CACHE_ENABLED', true), FILTER_VALIDATE_BOOL),
     'scan_hours' => env('JOBHUNTER_SCAN_HOURS', 6),
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
     'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
@@ -39,6 +40,17 @@ return [
     ],
     'bedrock' => [
         'model' => env('JOBHUNTER_BEDROCK_MODEL', 'anthropic.claude-3-5-sonnet'),
+    ],
+    'ai_operations' => [
+        'analysis' => [
+            'prompt_version' => env('JOBHUNTER_ANALYSIS_PROMPT_VERSION', 'v1'),
+        ],
+        'match_explanation' => [
+            'prompt_version' => env('JOBHUNTER_MATCH_PROMPT_VERSION', 'v1'),
+        ],
+        'resume_tailoring' => [
+            'prompt_version' => env('JOBHUNTER_RESUME_PROMPT_VERSION', 'v1'),
+        ],
     ],
     'prompts' => [
         'job_analysis' => <<<'PROMPT'

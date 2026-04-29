@@ -7,6 +7,8 @@ use App\Modules\Candidate\Domain\Models\CandidateExperience;
 use App\Modules\Candidate\Domain\Models\CandidateProject;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
+use App\Modules\Jobs\Domain\Models\JobAnalysis;
+use App\Modules\Resume\Domain\Models\TailoredResume;
 use App\Services\AI\Contracts\AiProviderInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -141,6 +143,54 @@ class AiFirstUpgradeTest extends TestCase
         $this->assertSame(['AI Job Platform'], $response->json('data.selected_projects'));
         $this->assertSame([], $response->json('data.tailored_experience_bullets'));
         $this->assertContains('Kubernetes is not clearly shown.', $response->json('data.warnings_or_gaps'));
+    }
+
+    public function test_repeated_resume_generation_reuses_cached_version_when_input_is_unchanged(): void
+    {
+        [$jobId, $profileId] = $this->seedAnalyzedJobAndProfile();
+
+        $first = $this->postJson("/api/jobhunter/jobs/{$jobId}/generate-resume", [
+            'profile_id' => $profileId,
+            'version_name' => 'v-cache',
+        ]);
+
+        $first->assertCreated()
+            ->assertJsonPath('data.prompt_version', 'v1');
+
+        $resumeId = $first->json('data.id');
+
+        $second = $this->postJson("/api/jobhunter/jobs/{$jobId}/generate-resume", [
+            'profile_id' => $profileId,
+            'version_name' => 'v-cache',
+        ]);
+
+        $second->assertCreated()
+            ->assertJsonPath('data.id', $resumeId);
+
+        $this->assertSame(1, TailoredResume::query()->where('job_id', $jobId)->where('profile_id', $profileId)->where('version_name', 'v-cache')->count());
+    }
+
+    public function test_repeated_job_analysis_reuses_cached_record_when_input_is_unchanged(): void
+    {
+        [$jobId] = $this->seedAnalyzedJobAndProfile();
+
+        $first = $this->getJson("/api/jobhunter/jobs/{$jobId}/analysis")
+            ->assertOk();
+
+        $firstAnalyzedAt = $first->json('data.analyzed_at');
+        $firstPromptVersion = $first->json('data.prompt_version');
+        $firstInputHash = JobAnalysis::query()->where('job_id', $jobId)->value('input_hash');
+
+        $this->postJson("/api/jobhunter/jobs/{$jobId}/analyze")
+            ->assertOk()
+            ->assertJsonPath('data.analysis.prompt_version', $firstPromptVersion)
+            ->assertJsonPath('data.analysis.fallback_used', true);
+
+        $second = $this->getJson("/api/jobhunter/jobs/{$jobId}/analysis")
+            ->assertOk();
+
+        $this->assertSame($firstAnalyzedAt, $second->json('data.analyzed_at'));
+        $this->assertSame($firstInputHash, JobAnalysis::query()->where('job_id', $jobId)->value('input_hash'));
     }
 
     private function seedAnalyzedJobAndProfile(): array

@@ -26,6 +26,9 @@ class JobAnalysisResource extends JsonResource
             'ai_model' => $this->ai_model,
             'ai_generated_at' => $this->ai_generated_at?->toISOString(),
             'ai_confidence_score' => $this->ai_confidence_score,
+            'prompt_version' => $this->prompt_version,
+            'ai_duration_ms' => $this->ai_duration_ms,
+            'fallback_used' => (bool) $this->fallback_used,
             'analyzed_at' => $this->analyzed_at?->toISOString(),
         ];
     }

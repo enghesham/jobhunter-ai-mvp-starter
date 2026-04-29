@@ -27,6 +27,10 @@ class TailoredResume extends Model
         'ai_generated_at',
         'ai_confidence_score',
         'ai_raw_response',
+        'prompt_version',
+        'input_hash',
+        'ai_duration_ms',
+        'fallback_used',
         'html_path',
         'pdf_path',
     ];
@@ -35,6 +39,7 @@ class TailoredResume extends Model
         'ats_keywords' => 'array',
         'warnings_or_gaps' => 'array',
         'ai_generated_at' => 'datetime',
+        'fallback_used' => 'boolean',
     ];
 
     public function user(): BelongsTo

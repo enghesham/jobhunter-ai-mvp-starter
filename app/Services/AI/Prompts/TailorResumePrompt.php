@@ -7,12 +7,21 @@ use App\Modules\Jobs\Domain\Models\Job;
 
 class TailorResumePrompt
 {
+    public function version(): string
+    {
+        return (string) config('jobhunter.ai_operations.resume_tailoring.prompt_version', 'v1');
+    }
+
     /**
      * @param array<string, mixed> $resumeContext
      */
     public function build(CandidateProfile $profile, Job $job, array $resumeContext): string
     {
         $payload = [
+            'meta' => [
+                'prompt_version' => $this->version(),
+                'operation' => 'resume_tailoring',
+            ],
             'rules' => [
                 'Use only facts from the candidate profile, experiences, and projects.',
                 'Do not invent companies, years, degrees, titles, or technologies.',

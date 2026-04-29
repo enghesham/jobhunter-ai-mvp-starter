@@ -29,6 +29,12 @@ class AnalyzeJobJob implements ShouldQueue
 
         $analysis = $analysisService->analyze($job);
 
+        if (($analysis['cache_hit'] ?? false) === true) {
+            $job->forceFill(['status' => 'analyzed'])->save();
+
+            return;
+        }
+
         JobAnalysis::updateOrCreate(
             ['job_id' => $job->id],
             [
@@ -49,6 +55,10 @@ class AnalyzeJobJob implements ShouldQueue
                 'ai_generated_at' => $analysis['ai_generated_at'] ?? null,
                 'ai_confidence_score' => $analysis['ai_confidence_score'] ?? null,
                 'ai_raw_response' => $analysis['ai_raw_response'] ?? null,
+                'prompt_version' => $analysis['prompt_version'] ?? null,
+                'input_hash' => $analysis['input_hash'] ?? null,
+                'ai_duration_ms' => $analysis['ai_duration_ms'] ?? null,
+                'fallback_used' => $analysis['fallback_used'] ?? false,
                 'analyzed_at' => now(),
             ]
         );

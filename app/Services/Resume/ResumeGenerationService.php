@@ -68,6 +68,15 @@ class ResumeGenerationService
             'source_experience_bullets' => $experienceBullets,
         ];
 
+        $promptVersion = $this->aiResumeTailoringService->promptVersion();
+        $inputHash = $this->aiResumeTailoringService->inputHash($profile, $job, $aiContext, $basePayload, $promptVersion);
+
+        $cached = $this->cachedResume($job, $profile, $versionName, $promptVersion, $inputHash);
+
+        if ($cached) {
+            return $cached->loadMissing(['job', 'profile']);
+        }
+
         $resumePayload = $this->aiResumeTailoringService->tailor($profile, $job, $aiContext, $basePayload);
 
         $html = View::make('resumes.templates.default', [
@@ -105,9 +114,29 @@ class ResumeGenerationService
             'ai_generated_at' => $resumePayload['ai_generated_at'],
             'ai_confidence_score' => $resumePayload['ai_confidence_score'] ?? $resumePayload['confidence_score'] ?? null,
             'ai_raw_response' => $resumePayload['ai_raw_response'],
+            'prompt_version' => $resumePayload['prompt_version'],
+            'input_hash' => $resumePayload['input_hash'],
+            'ai_duration_ms' => $resumePayload['ai_duration_ms'],
+            'fallback_used' => $resumePayload['fallback_used'],
             'html_path' => $documentPaths['html_path'],
             'pdf_path' => $documentPaths['pdf_path'],
         ]);
+    }
+
+    private function cachedResume(Job $job, CandidateProfile $profile, string $versionName, string $promptVersion, string $inputHash): ?TailoredResume
+    {
+        if (! config('jobhunter.ai_cache_enabled', true)) {
+            return null;
+        }
+
+        return TailoredResume::query()
+            ->where('job_id', $job->id)
+            ->where('profile_id', $profile->id)
+            ->where('version_name', $versionName)
+            ->where('prompt_version', $promptVersion)
+            ->where('input_hash', $inputHash)
+            ->latest('id')
+            ->first();
     }
 
     /**

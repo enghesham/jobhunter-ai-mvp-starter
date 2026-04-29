@@ -33,6 +33,9 @@ class JobMatchResource extends JsonResource
             'ai_model' => $this->ai_model,
             'ai_generated_at' => $this->ai_generated_at?->toISOString(),
             'ai_confidence_score' => $this->ai_confidence_score,
+            'prompt_version' => $this->prompt_version,
+            'ai_duration_ms' => $this->ai_duration_ms,
+            'fallback_used' => (bool) $this->fallback_used,
             'job' => $this->whenLoaded('job', fn () => [
                 'id' => $this->job?->id,
                 'title' => $this->job?->title,

@@ -33,6 +33,12 @@ class MatchJobToProfileJob implements ShouldQueue
         $score = $scoringService->score($profile, $job);
         $explanation = $explanationService->explain($profile, $job, $score);
 
+        if (($explanation['cache_hit'] ?? false) === true) {
+            $job->forceFill(['status' => 'matched'])->save();
+
+            return;
+        }
+
         JobMatch::updateOrCreate(
             ['job_id' => $job->id, 'profile_id' => $profile->id],
             [
@@ -57,6 +63,10 @@ class MatchJobToProfileJob implements ShouldQueue
                 'ai_generated_at' => $explanation['ai_generated_at'] ?? null,
                 'ai_confidence_score' => $explanation['ai_confidence_score'] ?? null,
                 'ai_raw_response' => $explanation['ai_raw_response'] ?? null,
+                'prompt_version' => $explanation['prompt_version'] ?? null,
+                'input_hash' => $explanation['input_hash'] ?? null,
+                'ai_duration_ms' => $explanation['ai_duration_ms'] ?? null,
+                'fallback_used' => $explanation['fallback_used'] ?? false,
                 'matched_at' => now(),
             ]
         );

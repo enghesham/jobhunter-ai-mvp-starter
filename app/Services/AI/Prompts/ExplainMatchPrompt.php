@@ -7,6 +7,11 @@ use App\Modules\Jobs\Domain\Models\Job;
 
 class ExplainMatchPrompt
 {
+    public function version(): string
+    {
+        return (string) config('jobhunter.ai_operations.match_explanation.prompt_version', 'v1');
+    }
+
     /**
      * @param array<string, mixed> $scoreBreakdown
      */
@@ -16,6 +21,10 @@ class ExplainMatchPrompt
         $job->loadMissing('analysis');
 
         $payload = [
+            'meta' => [
+                'prompt_version' => $this->version(),
+                'operation' => 'match_explanation',
+            ],
             'rules' => [
                 'Use only the provided candidate facts.',
                 'Do not invent candidate experience, skills, or projects.',
