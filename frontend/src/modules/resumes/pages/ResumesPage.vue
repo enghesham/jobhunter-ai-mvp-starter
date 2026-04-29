@@ -165,10 +165,14 @@
 
         <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-3 text-lg font-semibold text-slate-900">AI Metadata</h4>
-          <div class="grid gap-3 md:grid-cols-3 text-sm text-slate-700">
+          <div class="grid gap-3 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-3">
             <p><span class="font-medium text-slate-900">Provider:</span> {{ selectedResume.ai_provider || 'Deterministic fallback' }}</p>
             <p><span class="font-medium text-slate-900">Model:</span> {{ selectedResume.ai_model || 'N/A' }}</p>
             <p><span class="font-medium text-slate-900">Confidence:</span> {{ selectedResume.ai_confidence_score ?? 0 }}%</p>
+            <p><span class="font-medium text-slate-900">Prompt:</span> {{ selectedResume.prompt_version || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Duration:</span> {{ formatDuration(selectedResume.ai_duration_ms) }}</p>
+            <p><span class="font-medium text-slate-900">Fallback:</span> {{ yesNo(selectedResume.fallback_used) }}</p>
+            <p><span class="font-medium text-slate-900">Generated At:</span> {{ formatDateTime(selectedResume.ai_generated_at) }}</p>
           </div>
         </div>
       </div>
@@ -263,5 +267,17 @@ function formatDateTime(value?: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function formatDuration(value?: number | null): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 'N/A'
+  }
+
+  return `${value} ms`
+}
+
+function yesNo(value?: boolean | null): string {
+  return value ? 'Yes' : 'No'
 }
 </script>

@@ -16,5 +16,5 @@ interface JobAnalysisServiceInterface
      *     ai_summary: string|null
      * }
      */
-    public function analyze(Job $job): array;
+    public function analyze(Job $job, bool $force = false): array;
 }

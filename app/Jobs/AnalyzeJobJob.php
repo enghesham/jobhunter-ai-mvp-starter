@@ -15,7 +15,7 @@ class AnalyzeJobJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public int $jobId)
+    public function __construct(public int $jobId, public bool $force = false)
     {
     }
 
@@ -27,7 +27,7 @@ class AnalyzeJobJob implements ShouldQueue
             return;
         }
 
-        $analysis = $analysisService->analyze($job);
+        $analysis = $analysisService->analyze($job, $this->force);
 
         if (($analysis['cache_hit'] ?? false) === true) {
             $job->forceFill(['status' => 'analyzed'])->save();

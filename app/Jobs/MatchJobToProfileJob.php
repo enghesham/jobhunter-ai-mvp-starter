@@ -17,7 +17,7 @@ class MatchJobToProfileJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public int $jobId, public int $profileId)
+    public function __construct(public int $jobId, public int $profileId, public bool $force = false)
     {
     }
 
@@ -31,7 +31,7 @@ class MatchJobToProfileJob implements ShouldQueue
         }
 
         $score = $scoringService->score($profile, $job);
-        $explanation = $explanationService->explain($profile, $job, $score);
+        $explanation = $explanationService->explain($profile, $job, $score, $this->force);
 
         if (($explanation['cache_hit'] ?? false) === true) {
             $job->forceFill(['status' => 'matched'])->save();

@@ -15,7 +15,7 @@ class GenerateTailoredResumeJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public int $jobId, public int $profileId)
+    public function __construct(public int $jobId, public int $profileId, public bool $force = false)
     {
     }
 
@@ -28,6 +28,6 @@ class GenerateTailoredResumeJob implements ShouldQueue
             return;
         }
 
-        $resumeGenerationService->generate($job, $profile);
+        $resumeGenerationService->generate($job, $profile, 'v1', $this->force);
     }
 }

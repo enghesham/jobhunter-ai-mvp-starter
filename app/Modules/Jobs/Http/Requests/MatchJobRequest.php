@@ -16,6 +16,7 @@ class MatchJobRequest extends FormRequest
         return [
             'profile_id' => ['sometimes', 'integer', 'exists:candidate_profiles,id'],
             'sync' => ['sometimes', 'boolean'],
+            'force' => ['sometimes', 'boolean'],
         ];
     }
 }

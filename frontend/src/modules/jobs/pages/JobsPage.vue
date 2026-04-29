@@ -169,6 +169,15 @@
               text
               @click="openUrl(selectedJob.url)"
             />
+            <Button
+              label="Re-analyze AI"
+              icon="pi pi-refresh"
+              size="small"
+              severity="secondary"
+              outlined
+              :loading="actionLoading.analyze === selectedJob.id"
+              @click="handleAnalyze(selectedJob.id, true)"
+            />
           </div>
           <p class="break-all text-sm text-sky-700">{{ selectedJob.url || 'N/A' }}</p>
         </div>
@@ -252,6 +261,18 @@
           <div v-if="selectedJob.analysis.ai_summary" class="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-slate-700">
             {{ selectedJob.analysis.ai_summary }}
           </div>
+
+          <div class="mt-4 rounded-2xl bg-white px-4 py-3">
+            <p class="mb-3 text-sm font-medium text-slate-700">AI Metadata</p>
+            <div class="grid gap-3 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-3">
+              <p><span class="font-medium text-slate-900">Provider:</span> {{ selectedJob.analysis.ai_provider || 'Deterministic fallback' }}</p>
+              <p><span class="font-medium text-slate-900">Model:</span> {{ selectedJob.analysis.ai_model || 'N/A' }}</p>
+              <p><span class="font-medium text-slate-900">Prompt:</span> {{ selectedJob.analysis.prompt_version || 'N/A' }}</p>
+              <p><span class="font-medium text-slate-900">Duration:</span> {{ formatDuration(selectedJob.analysis.ai_duration_ms) }}</p>
+              <p><span class="font-medium text-slate-900">Fallback:</span> {{ yesNo(selectedJob.analysis.fallback_used) }}</p>
+              <p><span class="font-medium text-slate-900">Generated At:</span> {{ formatDateTime(selectedJob.analysis.ai_generated_at) }}</p>
+            </div>
+          </div>
         </div>
 
         <div v-if="selectedJob.raw_payload" class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -332,6 +353,18 @@
           </div>
         </div>
 
+        <div class="flex justify-end">
+          <Button
+            v-if="latestMatch.job_id && latestMatch.profile_id"
+            label="Re-run Match"
+            icon="pi pi-refresh"
+            severity="secondary"
+            outlined
+            :loading="actionLoading.match === latestMatch.job_id"
+            @click="rerunLatestMatch"
+          />
+        </div>
+
         <div class="space-y-4">
           <div v-for="metric in matchMetrics" :key="metric.label">
             <div class="mb-2 flex items-center justify-between text-sm">
@@ -383,6 +416,18 @@
             </ul>
           </div>
         </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <h4 class="mb-3 text-lg font-semibold text-slate-900">AI Metadata</h4>
+          <div class="grid gap-3 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-3">
+            <p><span class="font-medium text-slate-900">Provider:</span> {{ latestMatch.ai_provider || 'Deterministic fallback' }}</p>
+            <p><span class="font-medium text-slate-900">Model:</span> {{ latestMatch.ai_model || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Prompt:</span> {{ latestMatch.prompt_version || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Duration:</span> {{ formatDuration(latestMatch.ai_duration_ms) }}</p>
+            <p><span class="font-medium text-slate-900">Fallback:</span> {{ yesNo(latestMatch.fallback_used) }}</p>
+            <p><span class="font-medium text-slate-900">Generated At:</span> {{ formatDateTime(latestMatch.ai_generated_at) }}</p>
+          </div>
+        </div>
       </div>
     </Dialog>
 
@@ -395,6 +440,14 @@
           </div>
 
           <div class="flex flex-wrap gap-2">
+            <Button
+              label="Regenerate"
+              icon="pi pi-refresh"
+              severity="secondary"
+              outlined
+              :loading="generatedResume ? actionLoading.resume === generatedResume.job_id : false"
+              @click="rerunGeneratedResume"
+            />
             <Button
               label="Create Application"
               icon="pi pi-send"
@@ -467,6 +520,11 @@
             <p><span class="font-medium text-slate-900">HTML path:</span> {{ generatedResume.html_path || 'N/A' }}</p>
             <p><span class="font-medium text-slate-900">PDF path:</span> {{ generatedResume.pdf_path || 'Not generated' }}</p>
             <p><span class="font-medium text-slate-900">AI provider:</span> {{ generatedResume.ai_provider || 'Deterministic fallback' }}</p>
+            <p><span class="font-medium text-slate-900">AI model:</span> {{ generatedResume.ai_model || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Prompt:</span> {{ generatedResume.prompt_version || 'N/A' }}</p>
+            <p><span class="font-medium text-slate-900">Duration:</span> {{ formatDuration(generatedResume.ai_duration_ms) }}</p>
+            <p><span class="font-medium text-slate-900">Fallback:</span> {{ yesNo(generatedResume.fallback_used) }}</p>
+            <p><span class="font-medium text-slate-900">Generated at:</span> {{ formatDateTime(generatedResume.ai_generated_at) }}</p>
             <p><span class="font-medium text-slate-900">AI confidence:</span> {{ generatedResume.ai_confidence_score ?? 0 }}%</p>
           </div>
         </div>
@@ -537,6 +595,7 @@ const profiles = ref<CandidateProfile[]>([])
 const selectedProfileId = ref<number | null>(null)
 const pendingActionType = ref<PendingActionType>(null)
 const pendingJobId = ref<number | null>(null)
+const pendingForce = ref(false)
 const profileSelectionState = ref<'idle' | 'none' | 'ready'>('idle')
 const actionLoading = ref({
   analyze: null as number | null,
@@ -620,17 +679,22 @@ async function openDetails(jobId: number): Promise<void> {
   }
 }
 
-async function handleAnalyze(jobId: number): Promise<void> {
+async function handleAnalyze(jobId: number, force = false): Promise<void> {
   actionLoading.value.analyze = jobId
 
   try {
-    const updatedJob = await analyzeJob(jobId)
+    const updatedJob = await analyzeJob(jobId, { force })
     upsertJob(updatedJob)
     if (selectedJob.value?.id === jobId) {
       selectedJob.value = updatedJob
     }
 
-    toast.add({ severity: 'success', summary: 'Job analyzed', detail: `Analysis completed for "${updatedJob.title}".`, life: 3500 })
+    toast.add({
+      severity: 'success',
+      summary: force ? 'Job re-analyzed' : 'Job analyzed',
+      detail: `Analysis completed for "${updatedJob.title}".`,
+      life: 3500,
+    })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Analyze failed', detail: getApiErrorMessage(error, 'Failed to analyze job.'), life: 4500 })
   } finally {
@@ -638,9 +702,10 @@ async function handleAnalyze(jobId: number): Promise<void> {
   }
 }
 
-async function startProfileAction(actionType: Exclude<PendingActionType, null>, job: Job): Promise<void> {
+async function startProfileAction(actionType: Exclude<PendingActionType, null>, job: Job, force = false): Promise<void> {
   pendingActionType.value = actionType
   pendingJobId.value = job.id
+  pendingForce.value = force
   profilesLoading.value = true
   profileDialogVisible.value = false
   selectedProfileId.value = null
@@ -693,7 +758,7 @@ async function executeMatch(jobId: number, profileId: number): Promise<void> {
   actionLoading.value.match = jobId
 
   try {
-    const updatedJob = await matchJob(jobId, profileId)
+    const updatedJob = await matchJob(jobId, profileId, { force: pendingForce.value })
     upsertJob(updatedJob)
     latestMatch.value = updatedJob.matches?.[0] ?? null
     if (selectedJob.value?.id === jobId) {
@@ -704,7 +769,12 @@ async function executeMatch(jobId: number, profileId: number): Promise<void> {
       matchDialogVisible.value = true
     }
 
-    toast.add({ severity: 'success', summary: 'Job matched', detail: `Match completed for "${updatedJob.title}".`, life: 3500 })
+    toast.add({
+      severity: 'success',
+      summary: pendingForce.value ? 'Match re-run' : 'Job matched',
+      detail: `Match completed for "${updatedJob.title}".`,
+      life: 3500,
+    })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Match failed', detail: getApiErrorMessage(error, 'Failed to match job.'), life: 4500 })
   } finally {
@@ -717,11 +787,21 @@ async function executeResume(jobId: number, profileId: number): Promise<void> {
   actionLoading.value.resume = jobId
 
   try {
-    const resume = await generateResume(jobId, profileId)
+    const resume = await generateResume(jobId, profileId, {
+      force: pendingForce.value,
+      versionName: generatedResume.value?.job_id === jobId && generatedResumeProfileId.value === profileId
+        ? (generatedResume.value.version_name ?? 'v1')
+        : undefined,
+    })
     generatedResume.value = resume
     generatedResumeProfileId.value = profileId
     resumeDialogVisible.value = true
-    toast.add({ severity: 'success', summary: 'Resume generated', detail: 'Tailored resume draft created successfully.', life: 3500 })
+    toast.add({
+      severity: 'success',
+      summary: pendingForce.value ? 'Resume regenerated' : 'Resume generated',
+      detail: 'Tailored resume draft created successfully.',
+      life: 3500,
+    })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Resume generation failed', detail: getApiErrorMessage(error, 'Failed to generate resume.'), life: 4500 })
   } finally {
@@ -734,6 +814,7 @@ function resetPendingAction(): void {
   pendingActionType.value = null
   pendingJobId.value = null
   selectedProfileId.value = null
+  pendingForce.value = false
 }
 
 function upsertJob(job: Job): void {
@@ -826,6 +907,26 @@ async function goToCandidateProfiles(): Promise<void> {
   await router.push('/candidate-profile')
 }
 
+async function rerunLatestMatch(): Promise<void> {
+  if (!latestMatch.value?.job_id || !latestMatch.value?.profile_id) {
+    return
+  }
+
+  pendingForce.value = true
+  await executeMatch(latestMatch.value.job_id, latestMatch.value.profile_id)
+}
+
+async function rerunGeneratedResume(): Promise<void> {
+  if (!generatedResume.value || !generatedResumeProfileId.value) {
+    return
+  }
+
+  pendingActionType.value = 'resume'
+  pendingJobId.value = generatedResume.value.job_id
+  pendingForce.value = true
+  await executeResume(generatedResume.value.job_id, generatedResumeProfileId.value)
+}
+
 function openUrl(url: string): void {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
@@ -839,6 +940,18 @@ function formatDateTime(value?: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function formatDuration(value?: number | null): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 'N/A'
+  }
+
+  return `${value} ms`
+}
+
+function yesNo(value?: boolean | null): string {
+  return value ? 'Yes' : 'No'
 }
 
 function statusSeverity(status?: string | null): 'contrast' | 'success' | 'warn' | 'info' {

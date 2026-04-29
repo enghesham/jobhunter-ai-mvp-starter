@@ -16,6 +16,7 @@ class GenerateResumeRequest extends FormRequest
         return [
             'profile_id' => ['sometimes', 'integer', 'exists:candidate_profiles,id'],
             'version_name' => ['sometimes', 'string', 'max:100'],
+            'force' => ['sometimes', 'boolean'],
         ];
     }
 }

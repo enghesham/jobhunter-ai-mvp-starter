@@ -21,7 +21,7 @@ class AiAwareJobAnalysisService implements JobAnalysisServiceInterface
     ) {
     }
 
-    public function analyze(Job $job): array
+    public function analyze(Job $job, bool $force = false): array
     {
         if ($job->exists) {
             $job->loadMissing('analysis');
@@ -29,7 +29,7 @@ class AiAwareJobAnalysisService implements JobAnalysisServiceInterface
         $promptVersion = $this->prompt->version();
         $inputHash = $this->inputHash($job, $promptVersion);
 
-        if ($cached = $this->cached($job, $promptVersion, $inputHash)) {
+        if (! $force && ($cached = $this->cached($job, $promptVersion, $inputHash))) {
             $this->logResult($job, true, (bool) $cached['fallback_used'], 0, $cached['ai_provider']);
 
             return array_merge($cached, ['cache_hit' => true]);

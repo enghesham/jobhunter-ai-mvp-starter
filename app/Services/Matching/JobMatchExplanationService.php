@@ -24,12 +24,12 @@ class JobMatchExplanationService
      * @param array<string, mixed> $scoreBreakdown
      * @return array<string, mixed>
      */
-    public function explain(CandidateProfile $profile, Job $job, array $scoreBreakdown): array
+    public function explain(CandidateProfile $profile, Job $job, array $scoreBreakdown, bool $force = false): array
     {
         $promptVersion = $this->prompt->version();
         $inputHash = $this->inputHash($profile, $job, $scoreBreakdown, $promptVersion);
 
-        if ($cached = $this->cached($profile, $job, $promptVersion, $inputHash)) {
+        if (! $force && ($cached = $this->cached($profile, $job, $promptVersion, $inputHash))) {
             $this->logResult($job, $profile, true, (bool) $cached['fallback_used'], 0, $cached['ai_provider']);
 
             return array_merge($cached, ['cache_hit' => true]);

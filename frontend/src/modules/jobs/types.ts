@@ -18,6 +18,9 @@ export interface JobAnalysis {
   ai_model?: string | null
   ai_generated_at?: string | null
   ai_confidence_score?: number | null
+  prompt_version?: string | null
+  ai_duration_ms?: number | null
+  fallback_used?: boolean
   analyzed_at?: string | null
 }
 
@@ -45,6 +48,9 @@ export interface JobMatch {
   ai_model?: string | null
   ai_generated_at?: string | null
   ai_confidence_score?: number | null
+  prompt_version?: string | null
+  ai_duration_ms?: number | null
+  fallback_used?: boolean
   job?: {
     id?: number
     title?: string | null
@@ -81,6 +87,9 @@ export interface TailoredResume {
   ai_model?: string | null
   ai_generated_at?: string | null
   ai_confidence_score?: number | null
+  prompt_version?: string | null
+  ai_duration_ms?: number | null
+  fallback_used?: boolean
   html_path?: string | null
   pdf_path?: string | null
   html_url?: string | null

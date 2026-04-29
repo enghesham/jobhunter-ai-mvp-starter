@@ -20,7 +20,7 @@ class ResumeGenerationService
     ) {
     }
 
-    public function generate(Job $job, CandidateProfile $profile, string $versionName = 'v1'): TailoredResume
+    public function generate(Job $job, CandidateProfile $profile, string $versionName = 'v1', bool $force = false): TailoredResume
     {
         $job->loadMissing('analysis');
         $profile->loadMissing(['experiences', 'projects']);
@@ -71,7 +71,7 @@ class ResumeGenerationService
         $promptVersion = $this->aiResumeTailoringService->promptVersion();
         $inputHash = $this->aiResumeTailoringService->inputHash($profile, $job, $aiContext, $basePayload, $promptVersion);
 
-        $cached = $this->cachedResume($job, $profile, $versionName, $promptVersion, $inputHash);
+        $cached = $force ? null : $this->cachedResume($job, $profile, $versionName, $promptVersion, $inputHash);
 
         if ($cached) {
             return $cached->loadMissing(['job', 'profile']);
@@ -97,11 +97,7 @@ class ResumeGenerationService
         $basePath = "resumes/tailored/job_{$job->id}_profile_{$profile->id}_{$versionName}";
         $documentPaths = $this->pdfService->generate($html, $basePath);
 
-        return TailoredResume::create([
-            'job_id' => $job->id,
-            'user_id' => $profile->user_id ?: $job->user_id,
-            'profile_id' => $profile->id,
-            'version_name' => $versionName,
+        $attributes = [
             'headline_text' => $resumePayload['tailored_headline'],
             'summary_text' => $resumePayload['tailored_summary'],
             'skills_text' => implode("\n", $resumePayload['selected_skills']),
@@ -120,7 +116,18 @@ class ResumeGenerationService
             'fallback_used' => $resumePayload['fallback_used'],
             'html_path' => $documentPaths['html_path'],
             'pdf_path' => $documentPaths['pdf_path'],
-        ]);
+        ];
+
+        return TailoredResume::updateOrCreate(
+            [
+                'job_id' => $job->id,
+                'profile_id' => $profile->id,
+                'version_name' => $versionName,
+            ],
+            array_merge($attributes, [
+                'user_id' => $profile->user_id ?: $job->user_id,
+            ])
+        );
     }
 
     private function cachedResume(Job $job, CandidateProfile $profile, string $versionName, string $promptVersion, string $inputHash): ?TailoredResume

@@ -11,6 +11,7 @@ use App\Modules\Jobs\Http\Requests\MatchJobRequest;
 use App\Modules\Jobs\Http\Resources\JobResource;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class JobController extends Controller
@@ -32,11 +33,11 @@ class JobController extends Controller
         return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches.profile')));
     }
 
-    public function analyze(Job $job): JsonResponse
+    public function analyze(Request $request, Job $job): JsonResponse
     {
         $this->authorize('view', $job);
         try {
-            AnalyzeJobJob::dispatchSync($job->id);
+            AnalyzeJobJob::dispatchSync($job->id, $request->boolean('force'));
         } catch (Throwable $exception) {
             return ApiResponse::error($exception->getMessage(), 422);
         }
@@ -50,7 +51,7 @@ class JobController extends Controller
         try {
             $validated = $request->validated();
             $profileId = (int) ($validated['profile_id'] ?? 1);
-            MatchJobToProfileJob::dispatchSync($job->id, $profileId);
+            MatchJobToProfileJob::dispatchSync($job->id, $profileId, (bool) ($validated['force'] ?? false));
         } catch (Throwable $exception) {
             return ApiResponse::error($exception->getMessage(), 422);
         }

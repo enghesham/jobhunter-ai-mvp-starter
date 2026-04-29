@@ -39,6 +39,7 @@ class ResumeController extends Controller
         try {
             $profileId = (int) ($request->validated()['profile_id'] ?? 1);
             $versionName = (string) ($request->validated()['version_name'] ?? 'v1');
+            $force = (bool) ($request->validated()['force'] ?? false);
             $profile = CandidateProfile::with(['experiences', 'projects'])->find($profileId);
 
             if (! $profile) {
@@ -47,7 +48,7 @@ class ResumeController extends Controller
 
             $this->authorize('view', $profile);
 
-            $resume = $resumeGenerationService->generate($job, $profile, $versionName);
+            $resume = $resumeGenerationService->generate($job, $profile, $versionName, $force);
         } catch (Throwable $exception) {
             return ApiResponse::error($exception->getMessage(), 422);
         }

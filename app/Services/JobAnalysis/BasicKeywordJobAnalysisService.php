@@ -15,7 +15,7 @@ class BasicKeywordJobAnalysisService implements JobAnalysisServiceInterface
         'Pest', 'Kubernetes', 'Microservices', 'GraphQL',
     ];
 
-    public function analyze(Job $job): array
+    public function analyze(Job $job, bool $force = false): array
     {
         $text = $this->text($job);
         $requiredSkills = $this->findSkills($text);
