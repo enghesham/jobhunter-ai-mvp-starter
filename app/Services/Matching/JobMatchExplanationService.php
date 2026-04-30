@@ -109,8 +109,9 @@ class JobMatchExplanationService
                 array_slice($strengthAreas, 0, 4)
             ),
             'ai_recommendation_summary' => sprintf(
-                'Recommendation %s based on deterministic scoring with overall score %d.',
+                'Recommendation %s (%s) based on deterministic scoring with overall score %d.',
                 $scoreBreakdown['recommendation'] ?? 'unknown',
+                $scoreBreakdown['recommendation_action'] ?? 'consider',
                 $scoreBreakdown['overall_score'] ?? 0
             ),
             'confidence_score' => 55,

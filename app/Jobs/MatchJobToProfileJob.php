@@ -24,7 +24,7 @@ class MatchJobToProfileJob implements ShouldQueue
     public function handle(JobMatchScoringService $scoringService, JobMatchExplanationService $explanationService): void
     {
         $job = Job::with('analysis')->find($this->jobId);
-        $profile = CandidateProfile::find($this->profileId);
+        $profile = CandidateProfile::with(['experiences', 'projects'])->find($this->profileId);
 
         if (! $job || ! $job->analysis || ! $profile) {
             return;
@@ -46,6 +46,7 @@ class MatchJobToProfileJob implements ShouldQueue
                 'overall_score' => $score['overall_score'],
                 'title_score' => $score['title_score'],
                 'skill_score' => $score['skill_score'],
+                'experience_score' => $score['experience_score'],
                 'seniority_score' => $score['seniority_score'],
                 'location_score' => $score['location_score'],
                 'backend_focus_score' => $score['backend_focus_score'],
@@ -53,11 +54,14 @@ class MatchJobToProfileJob implements ShouldQueue
                 'notes' => $score['notes'],
                 'why_matched' => $explanation['why_matched'] ?? null,
                 'missing_skills' => $explanation['missing_skills'] ?? [],
+                'missing_required_skills' => $score['missing_required_skills'] ?? ($explanation['missing_skills'] ?? []),
+                'nice_to_have_gaps' => $score['nice_to_have_gaps'] ?? [],
                 'strength_areas' => $explanation['strength_areas'] ?? [],
                 'risk_flags' => $explanation['risk_flags'] ?? [],
                 'resume_focus_points' => $explanation['resume_focus_points'] ?? [],
                 'ai_recommendation_summary' => $explanation['ai_recommendation_summary'] ?? null,
                 'recommendation' => $score['recommendation'],
+                'recommendation_action' => $score['recommendation_action'],
                 'ai_provider' => $explanation['ai_provider'] ?? null,
                 'ai_model' => $explanation['ai_model'] ?? null,
                 'ai_generated_at' => $explanation['ai_generated_at'] ?? null,

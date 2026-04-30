@@ -42,14 +42,19 @@ export interface JobMatch {
   overall_score?: number | null
   title_score?: number | null
   skill_score?: number | null
+  skills_score?: number | null
+  experience_score?: number | null
   seniority_score?: number | null
   location_score?: number | null
   backend_focus_score?: number | null
   domain_score?: number | null
   recommendation?: string | null
+  recommendation_action?: string | null
   notes?: string | null
   why_matched?: string | null
   missing_skills?: string[]
+  missing_required_skills?: string[]
+  nice_to_have_gaps?: string[]
   strength_areas?: string[]
   risk_flags?: string[]
   resume_focus_points?: string[]

@@ -15,39 +15,49 @@ class JobMatchScoringService
         $analysis = $job->analysis;
         $candidateSkills = $this->normalize($profile->core_skills ?? []);
         $requiredSkills = $this->normalize($analysis?->required_skills ?? []);
+        $preferredSkills = $this->normalize($analysis?->preferred_skills ?? []);
         $matchedSkills = array_values(array_intersect($candidateSkills, $requiredSkills));
+        $missingRequiredSkills = $this->originalValues($analysis?->required_skills ?? [], array_diff($requiredSkills, $matchedSkills));
+        $niceToHaveGaps = $this->originalValues($analysis?->preferred_skills ?? [], array_diff($preferredSkills, $candidateSkills));
 
         $skillScore = $this->percentage(count($matchedSkills), max(count($requiredSkills), 1));
+        $experienceScore = $this->experienceScore($profile, $job, $requiredSkills, $preferredSkills);
         $titleScore = $this->titleScore($profile, $job);
         $seniorityScore = $this->seniorityScore($profile, $analysis?->seniority);
         $locationScore = $this->locationScore($profile, $job);
         $backendFocusScore = $analysis?->role_type === 'backend' ? 95 : ($analysis?->role_type === 'full_stack' ? 82 : 60);
-        $domainScore = $this->domainScore($analysis?->domain_tags ?? []);
+        $domainScore = $this->domainScore($profile, $analysis?->domain_tags ?? []);
 
         $overall = (int) round(
-            ($skillScore * 0.35)
+            ($skillScore * 0.30)
+            + ($experienceScore * 0.20)
             + ($titleScore * 0.20)
             + ($seniorityScore * 0.15)
             + ($locationScore * 0.10)
-            + ($backendFocusScore * 0.10)
-            + ($domainScore * 0.10)
+            + ($backendFocusScore * 0.03)
+            + ($domainScore * 0.02)
         );
+
+        $strengthAreas = $this->buildStrengthAreas($matchedSkills, $profile, $job, $domainScore, $experienceScore);
+        $recommendation = $this->recommendation($overall);
+        $recommendationAction = $this->recommendationAction($overall, $missingRequiredSkills, $experienceScore);
 
         return [
             'overall_score' => $overall,
             'title_score' => $titleScore,
             'skill_score' => $skillScore,
+            'skills_score' => $skillScore,
+            'experience_score' => $experienceScore,
             'seniority_score' => $seniorityScore,
             'location_score' => $locationScore,
             'backend_focus_score' => $backendFocusScore,
             'domain_score' => $domainScore,
-            'recommendation' => $this->recommendation($overall),
-            'notes' => sprintf(
-                'Matched skills: %s. Role type: %s. Seniority: %s.',
-                $matchedSkills === [] ? 'none detected' : implode(', ', $matchedSkills),
-                $analysis?->role_type ?: 'unknown',
-                $analysis?->seniority ?: 'unknown',
-            ),
+            'missing_required_skills' => $missingRequiredSkills,
+            'nice_to_have_gaps' => $niceToHaveGaps,
+            'strength_areas' => $strengthAreas,
+            'recommendation' => $recommendation,
+            'recommendation_action' => $recommendationAction,
+            'notes' => $this->notes($matchedSkills, $missingRequiredSkills, $niceToHaveGaps, $analysis?->role_type, $analysis?->seniority, $recommendationAction),
         ];
     }
 
@@ -117,13 +127,141 @@ class JobMatchScoringService
     /**
      * @param array<int, string> $domainTags
      */
-    private function domainScore(array $domainTags): int
+    private function domainScore(CandidateProfile $profile, array $domainTags): int
     {
+        $profileEvidence = mb_strtolower(implode(' ', array_filter([
+            $profile->headline,
+            $profile->base_summary,
+            implode(' ', $profile->core_skills ?? []),
+            implode(' ', $profile->nice_to_have_skills ?? []),
+        ])));
+
+        $matched = collect($domainTags)
+            ->filter(fn (string $tag): bool => $tag !== '' && str_contains($profileEvidence, mb_strtolower($tag)))
+            ->count();
+
+        if ($matched > 0) {
+            return min(95, 70 + ($matched * 10));
+        }
+
         if (array_intersect($domainTags, ['saas', 'search', 'ai', 'cloud'])) {
-            return 88;
+            return 82;
         }
 
         return 75;
+    }
+
+    /**
+     * @param array<int, string> $requiredSkills
+     * @param array<int, string> $preferredSkills
+     */
+    private function experienceScore(CandidateProfile $profile, Job $job, array $requiredSkills, array $preferredSkills): int
+    {
+        $analysis = $job->analysis;
+        $experiences = $profile->relationLoaded('experiences') ? $profile->experiences : collect();
+        $projects = $profile->relationLoaded('projects') ? $profile->projects : collect();
+        $minYears = $analysis?->years_experience_min;
+        $yearsAlignment = 80;
+
+        if (is_int($minYears) || is_float($minYears)) {
+            $yearsAlignment = $profile->years_experience >= $minYears
+                ? 95
+                : max(35, 95 - (($minYears - $profile->years_experience) * 12));
+        }
+
+        $experienceEvidenceText = mb_strtolower(implode(' ', array_filter([
+            $profile->headline,
+            $profile->base_summary,
+            implode(' ', $profile->core_skills ?? []),
+            implode(' ', $profile->nice_to_have_skills ?? []),
+            $experiences->map(fn ($experience) => implode(' ', array_filter([
+                $experience->title,
+                $experience->company,
+                $experience->description,
+                implode(' ', $experience->tech_stack ?? []),
+                implode(' ', $experience->achievements ?? []),
+            ])))->implode(' '),
+            $projects->map(fn ($project) => implode(' ', array_filter([
+                $project->name,
+                $project->description,
+                implode(' ', $project->tech_stack ?? []),
+            ])))->implode(' '),
+        ])));
+
+        $evidenceSkills = array_values(array_unique(array_merge($requiredSkills, $preferredSkills)));
+        $matchedEvidence = collect($evidenceSkills)
+            ->filter(fn (string $skill): bool => $skill !== '' && str_contains($experienceEvidenceText, $skill))
+            ->count();
+
+        $evidenceScore = $this->percentage($matchedEvidence, max(count($evidenceSkills), 1));
+
+        return (int) round(($yearsAlignment * 0.6) + ($evidenceScore * 0.4));
+    }
+
+    /**
+     * @param array<int, string> $originalValues
+     * @param array<int, string> $normalizedSubset
+     * @return array<int, string>
+     */
+    private function originalValues(array $originalValues, array $normalizedSubset): array
+    {
+        $lookup = array_flip($normalizedSubset);
+
+        return collect($originalValues)
+            ->filter(fn (string $value): bool => isset($lookup[mb_strtolower(trim($value))]))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, string> $matchedSkills
+     * @return array<int, string>
+     */
+    private function buildStrengthAreas(array $matchedSkills, CandidateProfile $profile, Job $job, int $domainScore, int $experienceScore): array
+    {
+        $areas = [];
+
+        foreach (array_slice($matchedSkills, 0, 4) as $skill) {
+            $areas[] = $skill;
+        }
+
+        if ($experienceScore >= 85) {
+            $areas[] = 'Relevant hands-on experience';
+        }
+
+        if ($domainScore >= 85) {
+            $areas[] = 'Domain alignment';
+        }
+
+        if (str_contains(mb_strtolower($job->title), 'backend')) {
+            $areas[] = 'Backend-focused title match';
+        }
+
+        return array_values(array_unique($areas));
+    }
+
+    /**
+     * @param array<int, string> $matchedSkills
+     * @param array<int, string> $missingRequiredSkills
+     * @param array<int, string> $niceToHaveGaps
+     */
+    private function notes(
+        array $matchedSkills,
+        array $missingRequiredSkills,
+        array $niceToHaveGaps,
+        ?string $roleType,
+        ?string $seniority,
+        string $recommendationAction,
+    ): string {
+        return sprintf(
+            'Matched skills: %s. Missing required: %s. Nice-to-have gaps: %s. Role type: %s. Seniority: %s. Recommendation: %s.',
+            $matchedSkills === [] ? 'none detected' : implode(', ', $matchedSkills),
+            $missingRequiredSkills === [] ? 'none' : implode(', ', $missingRequiredSkills),
+            $niceToHaveGaps === [] ? 'none' : implode(', ', array_slice($niceToHaveGaps, 0, 4)),
+            $roleType ?: 'unknown',
+            $seniority ?: 'unknown',
+            $recommendationAction,
+        );
     }
 
     private function percentage(int $value, int $total): int
@@ -139,5 +277,21 @@ class JobMatchScoringService
             $overall >= 55 => 'weak_match',
             default => 'not_recommended',
         };
+    }
+
+    /**
+     * @param array<int, string> $missingRequiredSkills
+     */
+    private function recommendationAction(int $overall, array $missingRequiredSkills, int $experienceScore): string
+    {
+        if ($overall >= 78 && count($missingRequiredSkills) <= 1 && $experienceScore >= 75) {
+            return 'apply';
+        }
+
+        if ($overall >= 62 && count($missingRequiredSkills) <= 3) {
+            return 'consider';
+        }
+
+        return 'skip';
     }
 }

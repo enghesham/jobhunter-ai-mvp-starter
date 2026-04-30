@@ -28,6 +28,8 @@ class JobMatchScoringServiceTest extends TestCase
 
         $job->setRelation('analysis', new JobAnalysis([
             'required_skills' => ['PHP', 'Laravel', 'REST APIs', 'PostgreSQL', 'Redis'],
+            'preferred_skills' => ['Docker', 'AWS'],
+            'years_experience_min' => 8,
             'seniority' => 'senior',
             'role_type' => 'backend',
             'domain_tags' => ['saas', 'cloud'],
@@ -37,5 +39,9 @@ class JobMatchScoringServiceTest extends TestCase
 
         $this->assertGreaterThanOrEqual(85, $score['overall_score']);
         $this->assertSame('strong_match', $score['recommendation']);
+        $this->assertSame('apply', $score['recommendation_action']);
+        $this->assertGreaterThanOrEqual(80, $score['experience_score']);
+        $this->assertSame([], $score['missing_required_skills']);
+        $this->assertSame([], $score['nice_to_have_gaps']);
     }
 }

@@ -440,6 +440,11 @@
             <div class="flex flex-wrap items-center gap-3">
               <h3 class="text-2xl font-semibold text-slate-900">Overall Match</h3>
               <Tag :severity="recommendationSeverity(latestMatch.recommendation)" :value="latestMatch.recommendation || 'unknown'" />
+              <Tag
+                v-if="latestMatch.recommendation_action"
+                :severity="recommendationActionSeverity(latestMatch.recommendation_action)"
+                :value="decisionLabel(latestMatch.recommendation_action)"
+              />
             </div>
             <p class="mt-2 text-sm leading-6 text-slate-600">{{ latestMatch.notes || 'No additional notes were returned.' }}</p>
           </div>
@@ -467,6 +472,33 @@
           </div>
         </div>
 
+        <div class="grid gap-4 lg:grid-cols-3">
+          <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">Why Suitable?</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ latestMatch.why_matched || latestMatch.notes || 'No explicit fit summary available.' }}</p>
+          </div>
+
+          <div class="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">What Is Missing?</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in latestMatch.missing_required_skills || latestMatch.missing_skills || []" :key="item">{{ item }}</li>
+              <li v-if="!(latestMatch.missing_required_skills?.length || latestMatch.missing_skills?.length)">No required skill gaps were flagged.</li>
+            </ul>
+          </div>
+
+          <div class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">Should I Apply?</h4>
+            <div class="space-y-3">
+              <Tag
+                v-if="latestMatch.recommendation_action"
+                :severity="recommendationActionSeverity(latestMatch.recommendation_action)"
+                :value="decisionLabel(latestMatch.recommendation_action)"
+              />
+              <p class="text-sm leading-6 text-slate-700">{{ applySummary(latestMatch) }}</p>
+            </div>
+          </div>
+        </div>
+
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Why Matched</h4>
@@ -489,12 +521,18 @@
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Missing Skills</h4>
             <div class="flex flex-wrap gap-2">
-              <Tag v-for="item in latestMatch.missing_skills || []" :key="item" :value="item" severity="danger" />
+              <Tag v-for="item in latestMatch.missing_required_skills || latestMatch.missing_skills || []" :key="item" :value="item" severity="danger" />
             </div>
           </div>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Nice-To-Have Gaps</h4>
+            <div class="flex flex-wrap gap-2">
+              <Tag v-for="item in latestMatch.nice_to_have_gaps || []" :key="item" :value="item" severity="warn" />
+            </div>
+          </div>
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Risk Flags</h4>
             <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
@@ -721,6 +759,7 @@ const matchMetrics = computed(() => {
 
   return [
     { label: 'Skill Score', value: normalizeScore(latestMatch.value.skill_score) },
+    { label: 'Experience Score', value: normalizeScore(latestMatch.value.experience_score) },
     { label: 'Title Score', value: normalizeScore(latestMatch.value.title_score) },
     { label: 'Seniority Score', value: normalizeScore(latestMatch.value.seniority_score) },
     { label: 'Location Score', value: normalizeScore(latestMatch.value.location_score) },
@@ -1113,6 +1152,43 @@ function recommendationSeverity(recommendation?: string | null): 'success' | 'in
       return 'warn'
     default:
       return 'danger'
+  }
+}
+
+function recommendationActionSeverity(action?: string | null): 'success' | 'info' | 'warn' | 'danger' {
+  switch (action) {
+    case 'apply':
+      return 'success'
+    case 'consider':
+      return 'warn'
+    default:
+      return 'danger'
+  }
+}
+
+function decisionLabel(action?: string | null): string {
+  switch (action) {
+    case 'apply':
+      return 'Apply'
+    case 'consider':
+      return 'Consider'
+    case 'skip':
+      return 'Skip'
+    default:
+      return 'Undecided'
+  }
+}
+
+function applySummary(match: JobMatch): string {
+  switch (match.recommendation_action) {
+    case 'apply':
+      return 'The current profile is aligned enough to submit an application.'
+    case 'consider':
+      return 'There is solid overlap, but review missing requirements before applying.'
+    case 'skip':
+      return 'The role has enough gaps that it should not be prioritized right now.'
+    default:
+      return 'No clear application recommendation was generated.'
   }
 }
 

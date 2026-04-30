@@ -26,13 +26,17 @@ const resolvedSeverity = computed<'contrast' | 'info' | 'success' | 'warn' | 'da
     case 'lever':
       return 'info'
     case 'applied':
+    case 'apply':
     case 'ready_to_apply':
     case 'weak_match':
     case 'custom':
       return 'warn'
+    case 'consider':
+      return 'info'
     case 'rejected':
     case 'inactive':
     case 'archived':
+    case 'skip':
       return 'danger'
     default:
       return 'contrast'

@@ -75,7 +75,10 @@
 
         <Column header="Recommendation">
           <template #body="{ data }">
-            <StatusTag :value="data.recommendation" />
+            <div class="space-y-1">
+              <StatusTag :value="data.recommendation" />
+              <StatusTag v-if="data.recommendation_action" :value="data.recommendation_action" :label="decisionLabel(data.recommendation_action)" />
+            </div>
           </template>
         </Column>
 
@@ -92,13 +95,13 @@
               </div>
               <div class="flex flex-wrap gap-2">
                 <Tag
-                  v-for="item in previewItems(data.missing_skills, 2)"
+                  v-for="item in previewItems(data.missing_required_skills || data.missing_skills, 2)"
                   :key="`${data.id}-missing-${item}`"
                   severity="danger"
                   :value="item"
                 />
                 <span
-                  v-if="!(data.strength_areas?.length || data.missing_skills?.length)"
+                  v-if="!(data.strength_areas?.length || data.missing_required_skills?.length || data.missing_skills?.length)"
                   class="text-xs text-slate-400"
                 >
                   Detailed explanation available in preview
@@ -167,6 +170,30 @@
           </div>
         </div>
 
+        <div class="grid gap-4 lg:grid-cols-3">
+          <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">Why This Fits</h4>
+            <p class="text-sm leading-6 text-slate-700">{{ selectedMatch.why_matched || selectedMatch.notes || 'No fit explanation available.' }}</p>
+          </div>
+          <div class="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">What Is Missing</h4>
+            <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+              <li v-for="item in selectedMatch.missing_required_skills || selectedMatch.missing_skills || []" :key="item">{{ item }}</li>
+              <li v-if="!(selectedMatch.missing_required_skills?.length || selectedMatch.missing_skills?.length)">No required skill gaps were flagged.</li>
+            </ul>
+          </div>
+          <div class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
+            <h4 class="mb-2 text-lg font-semibold text-slate-900">Should I Apply?</h4>
+            <div class="flex items-center gap-3">
+              <StatusTag
+                :value="selectedMatch.recommendation_action"
+                :label="decisionLabel(selectedMatch.recommendation_action)"
+              />
+              <p class="text-sm leading-6 text-slate-700">{{ applySummary(selectedMatch) }}</p>
+            </div>
+          </div>
+        </div>
+
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Why Matched</h4>
@@ -188,19 +215,25 @@
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Missing Skills</h4>
             <div class="flex flex-wrap gap-2">
-              <StatusTag v-for="item in selectedMatch.missing_skills || []" :key="item" :label="item" :value="'rejected'" />
+              <StatusTag v-for="item in selectedMatch.missing_required_skills || selectedMatch.missing_skills || []" :key="item" :label="item" :value="'rejected'" />
             </div>
           </div>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <h4 class="mb-3 text-lg font-semibold text-slate-900">Nice-To-Have Gaps</h4>
+            <div class="flex flex-wrap gap-2">
+              <StatusTag v-for="item in selectedMatch.nice_to_have_gaps || []" :key="item" :label="item" :value="'custom'" />
+            </div>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Risk Flags</h4>
             <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
               <li v-for="item in selectedMatch.risk_flags || []" :key="item">{{ item }}</li>
             </ul>
           </div>
-          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4 lg:col-span-1">
             <h4 class="mb-3 text-lg font-semibold text-slate-900">Resume Focus Points</h4>
             <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
               <li v-for="item in selectedMatch.resume_focus_points || []" :key="item">{{ item }}</li>
@@ -281,6 +314,7 @@ const metrics = computed(() => {
 
   return [
     { label: 'Skill Score', value: normalizeScore(selectedMatch.value.skill_score) },
+    { label: 'Experience Score', value: normalizeScore(selectedMatch.value.experience_score) },
     { label: 'Title Score', value: normalizeScore(selectedMatch.value.title_score) },
     { label: 'Seniority Score', value: normalizeScore(selectedMatch.value.seniority_score) },
     { label: 'Location Score', value: normalizeScore(selectedMatch.value.location_score) },
@@ -350,5 +384,31 @@ function previewItems(items?: string[] | null, limit = 2): string[] {
   }
 
   return items.slice(0, limit)
+}
+
+function decisionLabel(action?: string | null): string {
+  switch (action) {
+    case 'apply':
+      return 'Apply'
+    case 'consider':
+      return 'Consider'
+    case 'skip':
+      return 'Skip'
+    default:
+      return 'Undecided'
+  }
+}
+
+function applySummary(match: JobMatch): string {
+  switch (match.recommendation_action) {
+    case 'apply':
+      return 'The fit is strong enough to proceed with a real application.'
+    case 'consider':
+      return 'There is meaningful alignment, but review the gaps before applying.'
+    case 'skip':
+      return 'The current gap profile is large enough that this is not a priority application.'
+    default:
+      return 'No clear application recommendation was generated.'
+  }
 }
 </script>

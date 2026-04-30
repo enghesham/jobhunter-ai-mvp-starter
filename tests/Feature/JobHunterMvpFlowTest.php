@@ -75,7 +75,24 @@ class JobHunterMvpFlowTest extends TestCase
 
         $matchResponse->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.matches.0.profile_id', $profileId);
+            ->assertJsonPath('data.matches.0.profile_id', $profileId)
+            ->assertJsonStructure([
+                'data' => [
+                    'matches' => [
+                        [
+                            'experience_score',
+                            'missing_required_skills',
+                            'nice_to_have_gaps',
+                            'recommendation_action',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertContains(
+            $matchResponse->json('data.matches.0.recommendation_action'),
+            ['apply', 'consider', 'skip']
+        );
 
         $matchId = $matchResponse->json('data.matches.0.id');
 
