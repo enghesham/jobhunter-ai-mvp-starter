@@ -34,7 +34,7 @@ class ResumeGenerationTest extends TestCase
                 'location' => 'Remote',
                 'is_remote' => true,
                 'url' => 'https://jobs.example.com/resume-001',
-                'description' => 'Senior backend role with PHP, Laravel, PostgreSQL, Redis, Docker, AWS, queues and system design.',
+                'description' => 'Senior backend role. Required: PHP, Laravel, PostgreSQL, Redis, Kubernetes. Preferred: Terraform, AWS. Build scalable APIs and queue-driven systems.',
                 'raw_payload' => ['source' => 'manual'],
             ]],
         ])->json('data.jobs.0.id');
@@ -79,6 +79,16 @@ class ResumeGenerationTest extends TestCase
             ->assertJsonPath('data.headline', 'Senior Backend Engineer | Laravel | APIs | Scalable Systems')
             ->assertJsonCount(1, 'data.selected_projects')
             ->assertJsonCount(2, 'data.selected_experience_bullets');
+
+        $warnings = $response->json('data.warnings_or_gaps');
+
+        $this->assertIsArray($warnings);
+        $this->assertTrue(
+            collect($warnings)->contains(fn (string $warning): bool => str_contains($warning, 'Kubernetes'))
+        );
+        $this->assertTrue(
+            collect($warnings)->contains(fn (string $warning): bool => str_contains($warning, 'Terraform'))
+        );
 
         $htmlPath = $response->json('data.html_path');
 

@@ -31,16 +31,16 @@ class ResumeGenerationService
             ->latest('matched_at')
             ->first();
 
-        $selectedSkills = $this->selectedSkills($profile, $job);
-        $experienceBullets = $this->selectedExperienceBullets($profile->experiences, $job);
-        $projects = $this->selectedProjects($profile->projects, $job);
+        $selectedSkills = $this->selectedSkills($profile, $job, $match);
+        $experienceBullets = $this->selectedExperienceBullets($profile->experiences, $job, $match);
+        $projects = $this->selectedProjects($profile->projects, $job, $match);
         $headline = $profile->headline ?: $job->title;
         $summary = $this->summary($profile, $job, $selectedSkills, $match);
         $atsKeywords = collect(array_merge(
             $job->analysis?->required_skills ?? [],
             $job->analysis?->must_have_skills ?? []
         ))->unique()->values()->all();
-        $warningsOrGaps = $this->warningsOrGaps($profile, $job);
+        $warningsOrGaps = $this->warningsOrGaps($profile, $job, $match);
 
         $basePayload = [
             'tailored_headline' => $headline,
@@ -61,6 +61,7 @@ class ResumeGenerationService
                 'company_name' => $job->company_name,
             ],
             'analysis' => $job->analysis?->toArray() ?? [],
+            'match' => $match?->toArray() ?? [],
             'base_resume_payload' => $basePayload,
             'allowed_skills' => array_values(array_unique(array_merge($profile->core_skills ?? [], $profile->nice_to_have_skills ?? []))),
             'allowed_projects' => $profile->projects->pluck('name')->filter()->values()->all(),
@@ -149,13 +150,30 @@ class ResumeGenerationService
     /**
      * @return array<int, string>
      */
-    private function selectedSkills(CandidateProfile $profile, Job $job): array
+    private function selectedSkills(CandidateProfile $profile, Job $job, ?JobMatch $match): array
     {
-        $analysisSkills = collect($job->analysis?->required_skills ?? [])
-            ->map(fn (string $skill): string => mb_strtolower($skill));
+        $candidateSkills = collect($profile->core_skills ?? [])
+            ->filter(fn (mixed $skill): bool => is_string($skill))
+            ->values();
 
-        return collect($profile->core_skills ?? [])
-            ->sortByDesc(fn (string $skill): int => $analysisSkills->contains(mb_strtolower($skill)) ? 1 : 0)
+        $matchedRequired = collect($job->analysis?->required_skills ?? [])
+            ->filter(fn (string $skill): bool => $candidateSkills->contains(fn (string $candidateSkill): bool => mb_strtolower($candidateSkill) === mb_strtolower($skill)));
+        $matchedPreferred = collect($job->analysis?->preferred_skills ?? [])
+            ->filter(fn (string $skill): bool => $candidateSkills->contains(fn (string $candidateSkill): bool => mb_strtolower($candidateSkill) === mb_strtolower($skill)));
+        $strengthAreas = collect($match?->strength_areas ?? [])
+            ->filter(fn (string $skill): bool => $candidateSkills->contains(fn (string $candidateSkill): bool => mb_strtolower($candidateSkill) === mb_strtolower($skill)));
+
+        return $candidateSkills
+            ->sortByDesc(function (string $skill) use ($matchedRequired, $matchedPreferred, $strengthAreas): int {
+                $normalized = mb_strtolower($skill);
+
+                return match (true) {
+                    $matchedRequired->contains(fn (string $value): bool => mb_strtolower($value) === $normalized) => 4,
+                    $strengthAreas->contains(fn (string $value): bool => mb_strtolower($value) === $normalized) => 3,
+                    $matchedPreferred->contains(fn (string $value): bool => mb_strtolower($value) === $normalized) => 2,
+                    default => 1,
+                };
+            })
             ->take(10)
             ->values()
             ->all();
@@ -165,11 +183,13 @@ class ResumeGenerationService
      * @param Collection<int, CandidateExperience> $experiences
      * @return array<int, string>
      */
-    private function selectedExperienceBullets(Collection $experiences, Job $job): array
+    private function selectedExperienceBullets(Collection $experiences, Job $job, ?JobMatch $match): array
     {
         $signals = collect(array_merge(
             $job->analysis?->required_skills ?? [],
-            $job->analysis?->domain_tags ?? []
+            $job->analysis?->domain_tags ?? [],
+            $match?->strength_areas ?? [],
+            $match?->resume_focus_points ?? [],
         ))->map(fn (string $value): string => mb_strtolower($value))->all();
 
         return $experiences
@@ -184,6 +204,7 @@ class ResumeGenerationService
 
                 return $bullets->map(function (string $bullet) use ($experience, $signals): array {
                     $score = collect($signals)->filter(fn (string $signal): bool => str_contains(mb_strtolower($bullet), $signal))->count();
+                    $score += str_contains(mb_strtolower($experience->title), 'backend') ? 1 : 0;
 
                     return [
                         'text' => "{$experience->title} at {$experience->company}: ".trim($bullet),
@@ -202,9 +223,13 @@ class ResumeGenerationService
      * @param Collection<int, CandidateProject> $projects
      * @return array<int, string>
      */
-    private function selectedProjects(Collection $projects, Job $job): array
+    private function selectedProjects(Collection $projects, Job $job, ?JobMatch $match): array
     {
-        $signals = collect($job->analysis?->required_skills ?? [])
+        $signals = collect(array_merge(
+            $job->analysis?->required_skills ?? [],
+            $match?->strength_areas ?? [],
+            $job->analysis?->domain_tags ?? [],
+        ))
             ->map(fn (string $value): string => mb_strtolower($value))
             ->all();
 
@@ -237,26 +262,49 @@ class ResumeGenerationService
     {
         $skillsText = $selectedSkills === [] ? 'backend engineering' : implode(', ', array_slice($selectedSkills, 0, 6));
         $matchText = $match ? "Current match score: {$match->overall_score}/100." : null;
+        $decisionText = match ($match?->recommendation_action) {
+            'apply' => 'The profile shows strong enough alignment to support an active application.',
+            'consider' => 'The profile has meaningful overlap, with some gaps to acknowledge honestly.',
+            'skip' => 'The role has notable requirement gaps, so the resume should stay fact-based and conservative.',
+            default => null,
+        };
 
         return trim(implode(' ', array_filter([
             $profile->base_summary,
             "Tailored for {$job->title} at {$job->company_name}, emphasizing {$skillsText}.",
             $matchText,
+            $decisionText,
         ])));
     }
 
     /**
      * @return array<int, string>
      */
-    private function warningsOrGaps(CandidateProfile $profile, Job $job): array
+    private function warningsOrGaps(CandidateProfile $profile, Job $job, ?JobMatch $match): array
     {
         $candidateSkills = collect(array_merge($profile->core_skills ?? [], $profile->nice_to_have_skills ?? []))
             ->map(fn (string $skill): string => mb_strtolower($skill))
             ->all();
 
-        return collect($job->analysis?->must_have_skills ?? [])
+        $requiredWarnings = collect($match?->missing_required_skills ?: ($job->analysis?->must_have_skills ?? []))
             ->filter(fn (string $skill): bool => ! in_array(mb_strtolower($skill), $candidateSkills, true))
             ->map(fn (string $skill): string => "Requirement not evidenced in profile: {$skill}.")
+            ->values();
+
+        $niceToHaveWarnings = collect($match?->nice_to_have_gaps ?? [])
+            ->filter(fn (string $skill): bool => ! in_array(mb_strtolower($skill), $candidateSkills, true))
+            ->map(fn (string $skill): string => "Optional gap to acknowledge if asked: {$skill}.")
+            ->values();
+
+        $decisionWarning = match ($match?->recommendation_action) {
+            'skip' => 'Overall match is weak enough that this resume should not over-claim alignment.',
+            'consider' => 'Resume should emphasize strengths while staying explicit about missing requirements.',
+            default => null,
+        };
+
+        return $requiredWarnings
+            ->merge($niceToHaveWarnings)
+            ->when($decisionWarning !== null, fn (Collection $warnings): Collection => $warnings->push($decisionWarning))
             ->values()
             ->all();
     }

@@ -602,6 +602,31 @@
           </div>
         </div>
 
+        <div
+          v-if="currentResumeMatch?.recommendation_action"
+          :class="[
+            'rounded-3xl border p-4',
+            currentResumeMatch.recommendation_action === 'apply'
+              ? 'border-emerald-200 bg-emerald-50'
+              : currentResumeMatch.recommendation_action === 'consider'
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-rose-200 bg-rose-50',
+          ]"
+        >
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div class="flex flex-wrap items-center gap-3">
+                <h4 class="text-lg font-semibold text-slate-900">Application Decision</h4>
+                <Tag
+                  :severity="recommendationActionSeverity(currentResumeMatch.recommendation_action)"
+                  :value="decisionLabel(currentResumeMatch.recommendation_action)"
+                />
+              </div>
+              <p class="mt-2 text-sm leading-6 text-slate-700">{{ applySummary(currentResumeMatch) }}</p>
+            </div>
+          </div>
+        </div>
+
         <div v-if="generatedResume.professional_summary" class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-2 text-lg font-semibold text-slate-900">Professional Summary</h4>
           <p class="text-sm leading-6 text-slate-700">{{ generatedResume.professional_summary }}</p>
@@ -657,6 +682,57 @@
             <p><span class="font-medium text-slate-900">Generated at:</span> {{ formatDateTime(generatedResume.ai_generated_at) }}</p>
             <p><span class="font-medium text-slate-900">AI confidence:</span> {{ generatedResume.ai_confidence_score ?? 0 }}%</p>
           </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog v-model:visible="applicationGuardDialogVisible" modal header="Confirm Application Creation" :style="{ width: '34rem' }">
+      <div class="space-y-4">
+        <div
+          :class="[
+            'rounded-2xl border px-4 py-3 text-sm leading-6',
+            applicationDecisionAction === 'skip'
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-amber-200 bg-amber-50 text-amber-800',
+          ]"
+        >
+          {{ applicationDecisionMessage }}
+        </div>
+
+        <div v-if="currentResumeMatch && (currentResumeMatch.missing_required_skills?.length || currentResumeMatch.nice_to_have_gaps?.length)" class="space-y-3">
+          <div v-if="currentResumeMatch.missing_required_skills?.length" class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="mb-2 text-sm font-medium text-slate-900">Missing Required Skills</p>
+            <div class="flex flex-wrap gap-2">
+              <Tag
+                v-for="item in currentResumeMatch.missing_required_skills || []"
+                :key="`guard-missing-${item}`"
+                severity="danger"
+                :value="item"
+              />
+            </div>
+          </div>
+
+          <div v-if="currentResumeMatch.nice_to_have_gaps?.length" class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="mb-2 text-sm font-medium text-slate-900">Nice-To-Have Gaps</p>
+            <div class="flex flex-wrap gap-2">
+              <Tag
+                v-for="item in currentResumeMatch.nice_to_have_gaps || []"
+                :key="`guard-gap-${item}`"
+                severity="warn"
+                :value="item"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <Button label="Cancel" severity="secondary" text @click="applicationGuardDialogVisible = false" />
+          <Button
+            :label="applicationDecisionAction === 'skip' ? 'Create Anyway' : 'Continue'"
+            icon="pi pi-send"
+            :loading="creatingApplication"
+            @click="confirmCreateApplication"
+          />
         </div>
       </div>
     </Dialog>
@@ -721,6 +797,7 @@ const latestMatch = ref<JobMatch | null>(null)
 const generatedResume = ref<TailoredResume | null>(null)
 const generatedResumeProfileId = ref<number | null>(null)
 const creatingApplication = ref(false)
+const applicationGuardDialogVisible = ref(false)
 const profiles = ref<CandidateProfile[]>([])
 const selectedProfileId = ref<number | null>(null)
 const pendingActionType = ref<PendingActionType>(null)
@@ -783,6 +860,32 @@ const resumePreviewUrl = computed(() => {
 
   const apiBase = new URL(import.meta.env.VITE_API_BASE_URL)
   return `${apiBase.origin}/storage/${generatedResume.value.html_path}`
+})
+const currentResumeMatch = computed(() => {
+  if (!generatedResume.value || !generatedResumeProfileId.value) {
+    return null
+  }
+
+  if (
+    latestMatch.value
+    && latestMatch.value.job_id === generatedResume.value.job_id
+    && latestMatch.value.profile_id === generatedResumeProfileId.value
+  ) {
+    return latestMatch.value
+  }
+
+  return null
+})
+const applicationDecisionAction = computed(() => currentResumeMatch.value?.recommendation_action ?? null)
+const applicationDecisionMessage = computed(() => {
+  switch (applicationDecisionAction.value) {
+    case 'skip':
+      return 'This match is currently marked as Skip. Creating an application is still allowed, but the role has substantial fit gaps.'
+    case 'consider':
+      return 'This match is marked as Consider. Review the missing requirements before turning it into a tracked application.'
+    default:
+      return ''
+  }
 })
 
 onMounted(async () => {
@@ -1009,9 +1112,23 @@ async function handleCreateApplication(): Promise<void> {
     return
   }
 
+  if (applicationDecisionAction.value === 'consider' || applicationDecisionAction.value === 'skip') {
+    applicationGuardDialogVisible.value = true
+    return
+  }
+
+  await confirmCreateApplication()
+}
+
+async function confirmCreateApplication(): Promise<void> {
+  if (!generatedResume.value || !generatedResumeProfileId.value) {
+    return
+  }
+
   creatingApplication.value = true
 
   try {
+    applicationGuardDialogVisible.value = false
     await createApplication({
       job_id: generatedResume.value.job_id,
       candidate_profile_id: generatedResumeProfileId.value,

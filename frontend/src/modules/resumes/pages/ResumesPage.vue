@@ -217,6 +217,16 @@
           </ul>
         </div>
 
+        <div
+          v-if="(selectedResume.warnings_or_gaps?.length || 0) > 0"
+          class="rounded-3xl border border-rose-200 bg-rose-50 p-4"
+        >
+          <h4 class="mb-2 text-lg font-semibold text-slate-900">Application Readiness</h4>
+          <p class="text-sm leading-6 text-slate-700">
+            This resume includes explicit fit gaps. Review the warnings before using it for a real application.
+          </p>
+        </div>
+
         <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-3 text-lg font-semibold text-slate-900">AI Metadata</h4>
           <div class="grid gap-3 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-3">
