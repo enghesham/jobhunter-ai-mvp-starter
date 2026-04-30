@@ -43,7 +43,7 @@ class AuthAndOwnershipTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->getJson('/api/job-sources')
+        $this->getJson('/api/jobhunter/job-sources')
             ->assertOk()
             ->assertJsonCount(1, 'data.data')
             ->assertJsonPath('data.data.0.name', 'Mine');
@@ -80,10 +80,10 @@ class AuthAndOwnershipTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson("/api/candidate-profiles/{$profile->id}")
+        $this->getJson("/api/jobhunter/candidate-profiles/{$profile->id}")
             ->assertForbidden();
 
-        $this->getJson("/api/jobs/{$job->id}")
+        $this->getJson("/api/jobhunter/jobs/{$job->id}")
             ->assertForbidden();
     }
 }

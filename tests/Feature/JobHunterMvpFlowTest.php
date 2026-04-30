@@ -15,7 +15,7 @@ class JobHunterMvpFlowTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $sourceResponse = $this->postJson('/api/job-sources', [
+        $sourceResponse = $this->postJson('/api/jobhunter/job-sources', [
             'name' => 'Manual Import Source',
             'type' => 'custom',
             'url' => 'https://jobs.example.com',
@@ -29,7 +29,7 @@ class JobHunterMvpFlowTest extends TestCase
 
         $sourceId = $sourceResponse->json('data.id');
 
-        $ingestResponse = $this->postJson("/api/job-sources/{$sourceId}/ingest", [
+        $ingestResponse = $this->postJson("/api/jobhunter/job-sources/{$sourceId}/ingest", [
             'jobs' => [
                 [
                     'external_id' => 'backend-001',
@@ -52,7 +52,7 @@ class JobHunterMvpFlowTest extends TestCase
 
         $jobId = $ingestResponse->json('data.jobs.0.id');
 
-        $analyzeResponse = $this->postJson("/api/jobs/{$jobId}/analyze");
+        $analyzeResponse = $this->postJson("/api/jobhunter/jobs/{$jobId}/analyze");
 
         $analyzeResponse->assertOk()
             ->assertJsonPath('success', true)
@@ -61,7 +61,7 @@ class JobHunterMvpFlowTest extends TestCase
 
         $profilePayload = json_decode((string) file_get_contents(base_path('sample_candidate_profile.json')), true, 512, JSON_THROW_ON_ERROR);
 
-        $profileResponse = $this->postJson('/api/candidate-profiles/import', $profilePayload);
+        $profileResponse = $this->postJson('/api/jobhunter/candidate-profiles/import', $profilePayload);
 
         $profileResponse->assertOk()
             ->assertJsonPath('success', true)
@@ -69,7 +69,7 @@ class JobHunterMvpFlowTest extends TestCase
 
         $profileId = $profileResponse->json('data.id');
 
-        $matchResponse = $this->postJson("/api/jobs/{$jobId}/match", [
+        $matchResponse = $this->postJson("/api/jobhunter/jobs/{$jobId}/match", [
             'profile_id' => $profileId,
         ]);
 
@@ -106,7 +106,7 @@ class JobHunterMvpFlowTest extends TestCase
             ->assertJsonPath('data.data.0.job.id', $jobId)
             ->assertJsonPath('data.data.0.candidate_profile.id', $profileId);
 
-        $applicationResponse = $this->postJson('/api/applications', [
+        $applicationResponse = $this->postJson('/api/jobhunter/applications', [
             'job_id' => $jobId,
             'profile_id' => $profileId,
             'job_match_id' => $matchId,

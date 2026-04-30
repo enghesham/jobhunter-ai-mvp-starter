@@ -168,18 +168,13 @@ Key frontend areas:
 
 ## API Surface
 
-Two API surfaces currently exist:
-
-- `/api/...`
-- `/api/jobhunter/...`
-
-They expose the same business endpoints.
-
-For new frontend and client work, use the namespaced surface:
+The canonical business API surface is:
 
 - `/api/jobhunter/...`
 
-That is the path the current frontend uses.
+Authentication remains under:
+
+- `/api/auth/...`
 
 ### Auth Endpoints
 
@@ -465,7 +460,7 @@ cd frontend && npm run build
 
 ## Notes and Limitations
 
-- duplicate business API surfaces still exist under `/api/...` and `/api/jobhunter/...`
+- the business API surface is standardized under `/api/jobhunter/...`
 - AI provider failures are logged safely without exposing secrets
 - AI-heavy endpoints are rate-limited
 - PDF output is still HTML-first unless you enable a real PDF backend
