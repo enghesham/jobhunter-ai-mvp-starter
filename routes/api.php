@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Answers\Http\Controllers\AnswerTemplateController;
+use App\Modules\AI\Http\Controllers\AiQualityController;
 use App\Modules\Applications\Http\Controllers\ApplicationController;
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
@@ -20,6 +21,8 @@ Route::prefix('auth')->name('auth.')->group(function () {
 });
 
 Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->group(function () {
+    Route::get('ai-quality', AiQualityController::class);
+
     Route::apiResource('job-sources', JobSourceController::class);
     Route::post('job-sources/{jobSource}/scan', [JobSourceController::class, 'scan']);
     Route::post('job-sources/{jobSource}/ingest', [JobSourceController::class, 'ingest']);

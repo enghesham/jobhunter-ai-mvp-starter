@@ -131,6 +131,10 @@ const navSections = [
     label: 'Settings',
     items: [{ label: 'Settings', to: '/settings', icon: 'pi-cog' }],
   },
+  {
+    label: 'Developer',
+    items: [{ label: 'AI Quality', to: '/developer/ai-quality', icon: 'pi-chart-line' }],
+  },
 ]
 
 const pageTitle = computed(() => String(route.meta.title ?? 'Workspace'))

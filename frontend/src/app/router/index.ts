@@ -7,6 +7,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 const ApplicationsPage = () => import('@/modules/applications/pages/ApplicationsPage.vue')
 const CandidateProfilePage = () => import('@/modules/candidate-profile/pages/CandidateProfilePage.vue')
 const DashboardPage = () => import('@/modules/dashboard/pages/DashboardPage.vue')
+const AiQualityPage = () => import('@/modules/developer/pages/AiQualityPage.vue')
 const JobsPage = () => import('@/modules/jobs/pages/JobsPage.vue')
 const JobSourcesPage = () => import('@/modules/job-sources/pages/JobSourcesPage.vue')
 const LoginPage = () => import('@/modules/auth/pages/LoginPage.vue')
@@ -32,6 +33,7 @@ const router = createRouter({
         { path: 'resumes', component: ResumesPage, meta: { title: 'Resumes' } },
         { path: 'applications', component: ApplicationsPage, meta: { title: 'Applications' } },
         { path: 'settings', component: SettingsPage, meta: { title: 'Settings' } },
+        { path: 'developer/ai-quality', component: AiQualityPage, meta: { title: 'AI Quality' } },
       ],
     },
     {

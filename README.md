@@ -89,6 +89,36 @@ The project caches AI-derived results using an `input_hash` and `prompt_version`
 - repeated resume generation with unchanged input and same version reuses the stored version
 - repeated match explanation with unchanged input reuses the stored explanation
 
+### AI Quality Dashboard
+
+The frontend includes a developer dashboard at:
+
+- `/developer/ai-quality`
+
+Backend endpoint:
+
+- `GET /api/jobhunter/ai-quality`
+
+The dashboard reads persisted AI metadata plus sanitized Laravel log signals to show:
+
+- AI success vs deterministic fallback usage
+- average duration per provider and operation
+- average confidence score
+- cache hit rate from logged AI cache events
+- duplicated `input_hash` records that indicate reuse potential
+- top sanitized provider errors
+- provider comparison across OpenRouter, Gemini, Groq, OpenAI, local providers, and fallback
+
+Provider error messages are sanitized before being returned to the frontend. API keys and bearer tokens must not be exposed in the dashboard.
+
+Optional environment toggle:
+
+```env
+JOBHUNTER_AI_QUALITY_DASHBOARD_ENABLED=true
+```
+
+Set it to `false` if you want to hide the developer dashboard in a shared production environment.
+
 ### Force Re-run
 
 Caching can be bypassed when needed.
@@ -209,6 +239,7 @@ Accept: application/json
 - `POST /api/jobhunter/jobs/{id}/match`
 - `GET /api/jobhunter/matches`
 - `GET /api/jobhunter/matches/{id}/explanation`
+- `GET /api/jobhunter/ai-quality`
 - `POST /api/jobhunter/jobs/{id}/generate-resume`
 - `GET /api/jobhunter/resumes`
 - `GET /api/jobhunter/resumes/{id}`
@@ -323,6 +354,7 @@ JOBHUNTER_OPENROUTER_MODEL=openrouter/auto
 JOBHUNTER_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 JOBHUNTER_AI_TIMEOUT=30
 JOBHUNTER_AI_CACHE_ENABLED=true
+JOBHUNTER_AI_QUALITY_DASHBOARD_ENABLED=true
 JOBHUNTER_ANALYSIS_PROMPT_VERSION=v1
 JOBHUNTER_MATCH_PROMPT_VERSION=v1
 JOBHUNTER_RESUME_PROMPT_VERSION=v1
