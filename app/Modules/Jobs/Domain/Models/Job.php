@@ -28,6 +28,8 @@ class Job extends Model
         'salary_text',
         'posted_at',
         'hash',
+        'job_fingerprint',
+        'source_hash',
         'status',
     ];
 

@@ -21,6 +21,10 @@ class JobUpsertService
         $hash = $data->externalId
             ? hash('sha256', "{$source->id}|{$data->externalId}")
             : $data->fingerprint();
+        $jobFingerprint = $data->jobFingerprint();
+        $sourceHash = $data->sourceHash();
+
+        $job = $this->findExistingJob($source, $data, $jobFingerprint, $sourceHash, $hash);
 
         $values = [
             'external_id' => $data->externalId,
@@ -39,34 +43,10 @@ class JobUpsertService
             'posted_at' => $data->postedAt,
             'status' => 'new',
             'hash' => $hash,
+            'job_fingerprint' => $jobFingerprint,
+            'source_hash' => $sourceHash,
             'source_id' => $source->id,
         ];
-
-        /** @var Job|null $job */
-        $job = Job::query()
-            ->where(function ($query) use ($data, $source, $hash) {
-                if ($data->externalId) {
-                    $query->where(function ($externalIdQuery) use ($data, $source) {
-                        $externalIdQuery
-                            ->where('source_id', $source->id)
-                            ->where('external_id', $data->externalId);
-                    });
-                    if ($data->applyUrl) {
-                        $query->orWhere('apply_url', $data->applyUrl);
-                    }
-
-                    return;
-                }
-
-                if ($data->applyUrl) {
-                    $query->where('apply_url', $data->applyUrl);
-
-                    return;
-                }
-
-                $query->where('hash', $hash);
-            })
-            ->first();
 
         if (! $job) {
             $job = Job::create($values);
@@ -74,10 +54,66 @@ class JobUpsertService
             return ['job' => $job, 'created' => true, 'changed' => true];
         }
 
+        if ($job->source_id !== $source->id) {
+            $values['source_id'] = $job->source_id;
+            $values['external_id'] = $job->external_id ?: $data->externalId;
+        }
+
         $job->fill($values);
         $changed = $job->isDirty();
         $job->save();
 
         return ['job' => $job, 'created' => false, 'changed' => $changed];
+    }
+
+    private function findExistingJob(
+        JobSource $source,
+        NormalizedJobData $data,
+        string $jobFingerprint,
+        string $sourceHash,
+        string $hash,
+    ): ?Job {
+        $baseQuery = Job::query()->where('user_id', $source->user_id);
+
+        if ($data->externalId) {
+            $job = (clone $baseQuery)
+                ->where('source_id', $source->id)
+                ->where('external_id', $data->externalId)
+                ->first();
+
+            if ($job) {
+                return $job;
+            }
+        }
+
+        if ($data->applyUrl) {
+            $job = (clone $baseQuery)
+                ->where('apply_url', $data->applyUrl)
+                ->first();
+
+            if ($job) {
+                return $job;
+            }
+        }
+
+        $job = (clone $baseQuery)
+            ->where('source_hash', $sourceHash)
+            ->first();
+
+        if ($job) {
+            return $job;
+        }
+
+        $job = (clone $baseQuery)
+            ->where('job_fingerprint', $jobFingerprint)
+            ->first();
+
+        if ($job) {
+            return $job;
+        }
+
+        return Job::query()
+            ->where('hash', $hash)
+            ->first();
     }
 }

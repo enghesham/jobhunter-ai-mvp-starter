@@ -24,12 +24,33 @@ readonly class NormalizedJobData
 
     public function fingerprint(): string
     {
+        return $this->sourceHash();
+    }
+
+    public function jobFingerprint(): string
+    {
         return hash('sha256', implode('|', [
-            $this->externalId ?: '',
-            mb_strtolower($this->companyName),
-            mb_strtolower($this->title),
-            mb_strtolower($this->location ?: ''),
-            mb_strtolower($this->applyUrl ?: ''),
+            $this->normalize($this->companyName),
+            $this->normalize($this->title),
+            $this->normalize($this->location),
         ]));
+    }
+
+    public function sourceHash(): string
+    {
+        return hash('sha256', implode('|', [
+            $this->normalize($this->companyName),
+            $this->normalize($this->title),
+            $this->normalize($this->location),
+            $this->normalize($this->applyUrl),
+        ]));
+    }
+
+    private function normalize(?string $value): string
+    {
+        $normalized = mb_strtolower(trim((string) $value));
+        $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+
+        return $normalized;
     }
 }
