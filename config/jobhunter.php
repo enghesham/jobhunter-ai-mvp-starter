@@ -15,6 +15,7 @@ return [
     'pdf' => [
         'browser_path' => env('JOBHUNTER_PDF_BROWSER_PATH'),
         'timeout' => (int) env('JOBHUNTER_PDF_TIMEOUT', 60),
+        'mpdf_temp_dir' => env('JOBHUNTER_MPDF_TEMP_DIR', storage_path('app/tmp/mpdf')),
     ],
     'openai' => [
         'model' => env('JOBHUNTER_OPENAI_MODEL', 'gpt-4.1-mini'),

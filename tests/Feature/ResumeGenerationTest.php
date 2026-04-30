@@ -153,4 +153,57 @@ class ResumeGenerationTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-disposition');
     }
+
+    public function test_it_generates_a_real_pdf_when_mpdf_driver_is_enabled(): void
+    {
+        config()->set('jobhunter.pdf_driver', 'mpdf');
+        config()->set('jobhunter.pdf.mpdf_temp_dir', storage_path('app/testing/mpdf-temp'));
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $sourceId = $this->postJson('/api/jobhunter/job-sources', [
+            'name' => 'mPDF Source',
+            'type' => 'custom',
+            'url' => 'https://jobs.example.com',
+            'company_name' => 'PDF Company',
+            'is_active' => true,
+            'config' => ['mode' => 'manual'],
+        ])->json('data.id');
+
+        $jobId = $this->postJson("/api/jobhunter/job-sources/{$sourceId}/ingest", [
+            'jobs' => [[
+                'external_id' => 'mpdf-001',
+                'title' => 'Senior Backend Laravel Engineer',
+                'company_name' => 'PDF Company',
+                'location' => 'Remote',
+                'is_remote' => true,
+                'url' => 'https://jobs.example.com/mpdf-001',
+                'description' => 'Senior backend role. Required: PHP, Laravel, PostgreSQL, Redis.',
+                'raw_payload' => ['source' => 'manual'],
+            ]],
+        ])->json('data.jobs.0.id');
+
+        $this->postJson("/api/jobhunter/jobs/{$jobId}/analyze")->assertOk();
+
+        $profilePayload = json_decode((string) file_get_contents(base_path('sample_candidate_profile.json')), true, 512, JSON_THROW_ON_ERROR);
+        $profileId = $this->postJson('/api/jobhunter/candidate-profiles/import', $profilePayload)->json('data.id');
+
+        $this->postJson("/api/jobhunter/jobs/{$jobId}/match", [
+            'profile_id' => $profileId,
+        ])->assertOk();
+
+        $response = $this->postJson("/api/jobhunter/jobs/{$jobId}/generate-resume", [
+            'profile_id' => $profileId,
+            'version_name' => 'mpdf-v1',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $pdfPath = $response->json('data.pdf_path');
+
+        $this->assertNotNull($pdfPath);
+        $this->assertFileExists(storage_path('app/public/'.$pdfPath));
+        $this->assertGreaterThan(0, File::size(storage_path('app/public/'.$pdfPath)));
+    }
 }

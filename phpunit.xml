@@ -36,5 +36,8 @@
         <env name="JOBHUNTER_AI_ENABLED" value="false"/>
         <env name="JOBHUNTER_AI_PROVIDER" value="null"/>
         <env name="JOBHUNTER_AI_PROVIDER_CHAIN" value=""/>
+        <env name="JOBHUNTER_PDF_DRIVER" value="html"/>
+        <env name="JOBHUNTER_PDF_BROWSER_PATH" value=""/>
+        <env name="JOBHUNTER_MPDF_TEMP_DIR" value=""/>
     </php>
 </phpunit>

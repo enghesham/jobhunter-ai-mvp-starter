@@ -407,23 +407,40 @@ Resume generation supports:
 - structured tailored content
 - stored HTML output
 - HTML preview via storage
-- real PDF export when a browser-based PDF driver is enabled
+- real PDF export through either a PHP-only driver or a browser-based driver
 
 ### PDF Drivers
 
 Supported drivers:
 
 - `html`
+- `mpdf`
 - `browsershot`
 - `playwright`
 
-The `browsershot` and `playwright` values currently use the same headless-browser implementation and require a local browser executable such as Edge or Chrome.
+Recommended production driver:
+
+- `mpdf`
+
+This is the most practical general-purpose production setup because it does not require Chrome, Edge, or a headless browser binary on the server.
 
 Recommended environment:
 
 ```env
+JOBHUNTER_PDF_DRIVER=mpdf
+JOBHUNTER_MPDF_TEMP_DIR=/tmp/jobhunter-mpdf
+JOBHUNTER_PDF_TIMEOUT=60
+```
+
+Browser-based drivers are still available when you want HTML-to-PDF fidelity closer to the browser preview.
+
+The `browsershot` and `playwright` values currently use the same headless-browser implementation and require a local browser executable such as Edge or Chrome.
+
+Example environment for browser-based rendering:
+
+```env
 JOBHUNTER_PDF_DRIVER=browsershot
-JOBHUNTER_PDF_BROWSER_PATH=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+JOBHUNTER_PDF_BROWSER_PATH=/usr/bin/chromium-browser
 JOBHUNTER_PDF_TIMEOUT=60
 ```
 

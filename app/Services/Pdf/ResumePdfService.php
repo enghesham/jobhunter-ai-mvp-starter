@@ -5,6 +5,7 @@ namespace App\Services\Pdf;
 use App\Services\Pdf\Contracts\PdfDriverInterface;
 use App\Services\Pdf\Drivers\BrowsershotPdfDriver;
 use App\Services\Pdf\Drivers\HtmlOnlyPdfDriver;
+use App\Services\Pdf\Drivers\MpdfPdfDriver;
 
 class ResumePdfService
 {
@@ -30,6 +31,7 @@ class ResumePdfService
     private function driver(): PdfDriverInterface
     {
         return match ((string) config('jobhunter.pdf_driver', 'html')) {
+            'mpdf' => app(MpdfPdfDriver::class),
             'browsershot', 'playwright' => app(BrowsershotPdfDriver::class),
             default => app(HtmlOnlyPdfDriver::class),
         };
