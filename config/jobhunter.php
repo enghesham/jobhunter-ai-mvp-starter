@@ -12,6 +12,10 @@ return [
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
     'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
     'pdf_driver' => env('JOBHUNTER_PDF_DRIVER', 'html'),
+    'pdf' => [
+        'browser_path' => env('JOBHUNTER_PDF_BROWSER_PATH'),
+        'timeout' => (int) env('JOBHUNTER_PDF_TIMEOUT', 60),
+    ],
     'openai' => [
         'model' => env('JOBHUNTER_OPENAI_MODEL', 'gpt-4.1-mini'),
     ],

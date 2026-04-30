@@ -8,9 +8,12 @@ use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Resume\Domain\Models\TailoredResume;
 use App\Modules\Resume\Http\Requests\GenerateResumeRequest;
 use App\Modules\Resume\Http\Resources\TailoredResumeResource;
+use App\Services\Pdf\ResumePdfService;
 use App\Services\Resume\ResumeGenerationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\File;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 class ResumeController extends Controller
@@ -31,6 +34,44 @@ class ResumeController extends Controller
         abort_if($resume->user_id !== auth()->id(), 404);
 
         return ApiResponse::success(new TailoredResumeResource($resume->load(['job', 'profile'])));
+    }
+
+    public function downloadPdf(TailoredResume $resume, ResumePdfService $pdfService): BinaryFileResponse|JsonResponse
+    {
+        abort_if($resume->user_id !== auth()->id(), 404);
+
+        if ($resume->pdf_path && File::exists(storage_path('app/public/'.$resume->pdf_path))) {
+            return response()->download(
+                storage_path('app/public/'.$resume->pdf_path),
+                $this->downloadFileName($resume)
+            );
+        }
+
+        if (! $resume->html_path || ! File::exists(storage_path('app/public/'.$resume->html_path))) {
+            return ApiResponse::error('Resume HTML preview is missing. Regenerate the resume first.', 404);
+        }
+
+        if (! $pdfService->supportsPdf()) {
+            return ApiResponse::error('PDF generation is not enabled for the current driver.', 422);
+        }
+
+        try {
+            $relativeBasePath = pathinfo($resume->html_path, PATHINFO_DIRNAME).'/'.pathinfo($resume->html_path, PATHINFO_FILENAME);
+            $pdfPath = $pdfService->ensurePdf((string) File::get(storage_path('app/public/'.$resume->html_path)), $relativeBasePath);
+
+            if (! $pdfPath || ! File::exists(storage_path('app/public/'.$pdfPath))) {
+                return ApiResponse::error('PDF generation did not produce a downloadable file.', 422);
+            }
+
+            $resume->forceFill(['pdf_path' => $pdfPath])->save();
+        } catch (Throwable $exception) {
+            return ApiResponse::error($exception->getMessage(), 422);
+        }
+
+        return response()->download(
+            storage_path('app/public/'.$resume->pdf_path),
+            $this->downloadFileName($resume)
+        );
     }
 
     public function generate(GenerateResumeRequest $request, Job $job, ResumeGenerationService $resumeGenerationService): JsonResponse
@@ -54,5 +95,21 @@ class ResumeController extends Controller
         }
 
         return ApiResponse::success(new TailoredResumeResource($resume->load(['job', 'profile'])), 201);
+    }
+
+    private function downloadFileName(TailoredResume $resume): string
+    {
+        $parts = array_filter([
+            $resume->profile?->full_name,
+            $resume->job?->title,
+            $resume->version_name,
+        ]);
+
+        $normalized = implode('-', array_map(
+            fn (string $value): string => preg_replace('/[^A-Za-z0-9\-]+/', '-', trim($value)) ?: 'resume',
+            $parts
+        ));
+
+        return trim($normalized, '-').'.pdf';
     }
 }

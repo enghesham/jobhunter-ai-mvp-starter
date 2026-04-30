@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateExperience;
 use App\Modules\Candidate\Domain\Models\CandidateProject;
+use App\Modules\Resume\Domain\Models\TailoredResume;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -94,5 +96,61 @@ class ResumeGenerationTest extends TestCase
 
         $this->assertNotNull($htmlPath);
         $this->assertFileExists(storage_path('app/public/'.$htmlPath));
+    }
+
+    public function test_it_downloads_an_existing_resume_pdf_for_the_owner(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $sourceId = $this->postJson('/api/jobhunter/job-sources', [
+            'name' => 'PDF Source',
+            'type' => 'custom',
+            'url' => 'https://jobs.example.com',
+            'company_name' => 'PDF Company',
+            'is_active' => true,
+            'config' => ['mode' => 'manual'],
+        ])->json('data.id');
+
+        $jobId = $this->postJson("/api/jobhunter/job-sources/{$sourceId}/ingest", [
+            'jobs' => [[
+                'external_id' => 'pdf-001',
+                'title' => 'Senior Backend Laravel Engineer',
+                'company_name' => 'PDF Company',
+                'location' => 'Remote',
+                'is_remote' => true,
+                'url' => 'https://jobs.example.com/pdf-001',
+                'description' => 'Senior backend role with PHP and Laravel.',
+                'raw_payload' => ['source' => 'manual'],
+            ]],
+        ])->json('data.jobs.0.id');
+
+        $profilePayload = json_decode((string) file_get_contents(base_path('sample_candidate_profile.json')), true, 512, JSON_THROW_ON_ERROR);
+        $profileId = $this->postJson('/api/jobhunter/candidate-profiles/import', $profilePayload)->json('data.id');
+
+        $resume = TailoredResume::create([
+            'job_id' => $jobId,
+            'user_id' => $user->id,
+            'profile_id' => $profileId,
+            'version_name' => 'v1',
+            'headline_text' => 'Senior Backend Engineer',
+            'summary_text' => 'PDF ready resume.',
+            'skills_text' => "PHP\nLaravel",
+            'experience_text' => 'Built scalable APIs.',
+            'projects_text' => 'JobHunter AI Platform',
+            'ats_keywords' => ['PHP', 'Laravel'],
+            'warnings_or_gaps' => [],
+            'html_path' => 'resumes/tailored/test-resume.html',
+            'pdf_path' => 'resumes/tailored/test-resume.pdf',
+        ]);
+
+        File::ensureDirectoryExists(storage_path('app/public/resumes/tailored'));
+        File::put(storage_path('app/public/resumes/tailored/test-resume.html'), '<html><body>Resume</body></html>');
+        File::put(storage_path('app/public/resumes/tailored/test-resume.pdf'), 'fake pdf content');
+
+        $response = $this->get("/api/jobhunter/resumes/{$resume->id}/download-pdf");
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition');
     }
 }

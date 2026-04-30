@@ -33,6 +33,7 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::get('matches/{match}/explanation', [JobMatchController::class, 'explanation']);
     Route::get('resumes', [ResumeController::class, 'index']);
     Route::get('resumes/{resume}', [ResumeController::class, 'show']);
+    Route::get('resumes/{resume}/download-pdf', [ResumeController::class, 'downloadPdf'])->name('resumes.download-pdf');
     Route::post('jobs/{job}/generate-resume', [ResumeController::class, 'generate'])->middleware('throttle:ai-heavy');
 
     Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update', 'destroy']);

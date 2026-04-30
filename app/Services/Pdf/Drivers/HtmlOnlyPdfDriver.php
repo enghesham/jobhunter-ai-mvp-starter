@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\File;
 
 class HtmlOnlyPdfDriver implements PdfDriverInterface
 {
+    public function supportsPdf(): bool
+    {
+        return false;
+    }
+
     public function generate(string $html, string $relativeBasePath): array
     {
         $htmlRelativePath = "{$relativeBasePath}.html";

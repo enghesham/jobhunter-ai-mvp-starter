@@ -13,6 +13,20 @@ class ResumePdfService
         return $this->driver()->generate($html, $relativeBasePath);
     }
 
+    public function supportsPdf(): bool
+    {
+        return $this->driver()->supportsPdf();
+    }
+
+    public function ensurePdf(string $html, string $relativeBasePath): ?string
+    {
+        if (! $this->supportsPdf()) {
+            return null;
+        }
+
+        return $this->generate($html, $relativeBasePath)['pdf_path'];
+    }
+
     private function driver(): PdfDriverInterface
     {
         return match ((string) config('jobhunter.pdf_driver', 'html')) {

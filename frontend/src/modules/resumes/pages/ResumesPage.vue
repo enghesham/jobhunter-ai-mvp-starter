@@ -117,6 +117,15 @@
         <Column header="Resume URL">
           <template #body="{ data }">
             <Button
+              v-if="data.download_pdf_url || data.pdf_url"
+              label="PDF"
+              icon="pi pi-download"
+              size="small"
+              text
+              :loading="downloadingResumeId === data.id"
+              @click="handleDownloadPdf(data)"
+            />
+            <Button
               v-if="previewUrl(data)"
               label="View"
               icon="pi pi-external-link"
@@ -145,6 +154,15 @@
           </div>
 
           <div class="flex flex-wrap gap-2">
+            <Button
+              v-if="selectedResume.download_pdf_url || selectedResume.pdf_url"
+              label="Download PDF"
+              icon="pi pi-download"
+              severity="secondary"
+              outlined
+              :loading="downloadingResumeId === selectedResume.id"
+              @click="handleDownloadPdf(selectedResume)"
+            />
             <Button
               v-if="previewUrl(selectedResume)"
               label="Open Preview"
@@ -254,10 +272,11 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import { useToast } from 'primevue/usetoast'
 import { RouterLink } from 'vue-router'
 
 import type { TailoredResume } from '@/modules/jobs/types'
-import { listResumes } from '@/modules/resumes/services/resumesApi'
+import { downloadResumePdf, listResumes } from '@/modules/resumes/services/resumesApi'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ErrorState from '@/shared/components/ErrorState.vue'
 import PageHeader from '@/shared/components/PageHeader.vue'
@@ -270,9 +289,11 @@ const errorMessage = ref('')
 const query = ref('')
 const debouncedQuery = useDebouncedValue(query, 250)
 const resumes = ref<TailoredResume[]>([])
+const downloadingResumeId = ref<number | null>(null)
 const totalResumes = ref(0)
 const detailsDialogVisible = ref(false)
 const selectedResume = ref<TailoredResume | null>(null)
+const toast = useToast()
 
 const filteredResumes = computed(() => {
   const search = debouncedQuery.value.trim().toLowerCase()
@@ -314,8 +335,25 @@ function openDetails(resume: TailoredResume): void {
   detailsDialogVisible.value = true
 }
 
+async function handleDownloadPdf(resume: TailoredResume): Promise<void> {
+  downloadingResumeId.value = resume.id
+
+  try {
+    await downloadResumePdf(resume.id)
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'PDF download failed',
+      detail: getApiErrorMessage(error, 'The PDF could not be downloaded.'),
+      life: 4500,
+    })
+  } finally {
+    downloadingResumeId.value = null
+  }
+}
+
 function previewUrl(resume: TailoredResume): string | null {
-  return resume.html_url || resume.pdf_url || null
+  return resume.html_url || null
 }
 
 function openUrl(url: string): void {

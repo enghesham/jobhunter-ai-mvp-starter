@@ -212,6 +212,7 @@ Accept: application/json
 - `POST /api/jobhunter/jobs/{id}/generate-resume`
 - `GET /api/jobhunter/resumes`
 - `GET /api/jobhunter/resumes/{id}`
+- `GET /api/jobhunter/resumes/{id}/download-pdf`
 - `GET|POST|PUT|DELETE /api/jobhunter/candidate-profiles`
 - `POST /api/jobhunter/candidate-profiles/import`
 - `GET|POST|PUT|DELETE /api/jobhunter/applications`
@@ -401,16 +402,41 @@ Production cron:
 
 ## Resume Output
 
-Resume generation currently supports:
+Resume generation supports:
 
 - structured tailored content
 - stored HTML output
 - HTML preview via storage
+- real PDF export when a browser-based PDF driver is enabled
 
-Current PDF behavior is HTML-first.
+### PDF Drivers
 
-- `HtmlOnlyPdfDriver` is active for MVP
-- Browsershot/Playwright PDF drivers remain stubbed until you enable a real PDF engine
+Supported drivers:
+
+- `html`
+- `browsershot`
+- `playwright`
+
+The `browsershot` and `playwright` values currently use the same headless-browser implementation and require a local browser executable such as Edge or Chrome.
+
+Recommended environment:
+
+```env
+JOBHUNTER_PDF_DRIVER=browsershot
+JOBHUNTER_PDF_BROWSER_PATH=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+JOBHUNTER_PDF_TIMEOUT=60
+```
+
+If `JOBHUNTER_PDF_DRIVER=html`, the app still stores HTML preview output, but `download-pdf` will return an error until a real PDF driver is enabled.
+
+### Resume PDF Download
+
+Download endpoint:
+
+```http
+GET /api/jobhunter/resumes/{resume}/download-pdf
+Authorization: Bearer <token>
+```
 
 ## Ownership and Security
 

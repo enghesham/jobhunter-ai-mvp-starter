@@ -36,6 +36,7 @@ class TailoredResumeResource extends JsonResource
             'pdf_path' => $this->pdf_path,
             'html_url' => $this->html_path ? url('/storage/'.$this->html_path) : null,
             'pdf_url' => $this->pdf_path ? url('/storage/'.$this->pdf_path) : null,
+            'download_pdf_url' => route('jobhunter.resumes.download-pdf', ['resume' => $this->id]),
             'job' => $this->whenLoaded('job', fn () => [
                 'id' => $this->job?->id,
                 'title' => $this->job?->title,

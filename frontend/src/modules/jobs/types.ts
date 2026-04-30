@@ -109,6 +109,7 @@ export interface TailoredResume {
   pdf_path?: string | null
   html_url?: string | null
   pdf_url?: string | null
+  download_pdf_url?: string | null
   job?: {
     id?: number
     title?: string | null

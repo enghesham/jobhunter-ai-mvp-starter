@@ -585,6 +585,15 @@
               @click="handleCreateApplication"
             />
             <Button
+              v-if="generatedResume.download_pdf_url || generatedResume.pdf_url"
+              label="Download PDF"
+              icon="pi pi-download"
+              severity="secondary"
+              outlined
+              :loading="downloadingGeneratedResumePdf"
+              @click="handleDownloadGeneratedResumePdf"
+            />
+            <Button
               v-if="resumePreviewUrl"
               label="Open Preview"
               icon="pi pi-external-link"
@@ -760,6 +769,7 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import ErrorState from '@/shared/components/ErrorState.vue'
 import LoadingButton from '@/shared/components/LoadingButton.vue'
 import { createApplication } from '@/modules/applications/services/applicationsApi'
+import { downloadResumePdf } from '@/modules/resumes/services/resumesApi'
 import PageHeader from '@/shared/components/PageHeader.vue'
 import SkeletonTable from '@/shared/components/SkeletonTable.vue'
 import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
@@ -796,6 +806,7 @@ const resumeDialogVisible = ref(false)
 const latestMatch = ref<JobMatch | null>(null)
 const generatedResume = ref<TailoredResume | null>(null)
 const generatedResumeProfileId = ref<number | null>(null)
+const downloadingGeneratedResumePdf = ref(false)
 const creatingApplication = ref(false)
 const applicationGuardDialogVisible = ref(false)
 const profiles = ref<CandidateProfile[]>([])
@@ -1104,6 +1115,27 @@ async function copyResumeContent(): Promise<void> {
     toast.add({ severity: 'success', summary: 'Copied', detail: 'Resume content copied to clipboard.', life: 2500 })
   } catch {
     toast.add({ severity: 'error', summary: 'Copy failed', detail: 'Could not copy resume content.', life: 3000 })
+  }
+}
+
+async function handleDownloadGeneratedResumePdf(): Promise<void> {
+  if (!generatedResume.value) {
+    return
+  }
+
+  downloadingGeneratedResumePdf.value = true
+
+  try {
+    await downloadResumePdf(generatedResume.value.id)
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'PDF download failed',
+      detail: getApiErrorMessage(error, 'The PDF could not be downloaded.'),
+      life: 4500,
+    })
+  } finally {
+    downloadingGeneratedResumePdf.value = false
   }
 }
 
