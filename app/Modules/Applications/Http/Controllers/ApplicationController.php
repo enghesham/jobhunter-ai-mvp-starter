@@ -8,10 +8,13 @@ use App\Modules\Applications\Http\Requests\StoreApplicationEventRequest;
 use App\Modules\Applications\Http\Requests\StoreApplicationRequest;
 use App\Modules\Applications\Http\Requests\UpdateApplicationRequest;
 use App\Modules\Applications\Http\Resources\ApplicationEventResource;
+use App\Modules\Applications\Http\Resources\ApplicationMaterialResource;
 use App\Modules\Applications\Http\Resources\ApplicationResource;
+use App\Services\Applications\ApplicationMaterialGenerationService;
 use App\Services\Applications\ApplicationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ApplicationController extends Controller
 {
@@ -36,7 +39,7 @@ class ApplicationController extends Controller
     public function show(Application $application): JsonResponse
     {
         $this->authorize('view', $application);
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events'])));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events', 'materials'])));
     }
 
     public function update(UpdateApplicationRequest $request, Application $application, ApplicationService $applicationService): JsonResponse
@@ -47,7 +50,7 @@ class ApplicationController extends Controller
             $request->validated() + ['user_id' => auth()->id()]
         );
 
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events'])));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events', 'materials'])));
     }
 
     public function storeEvent(
@@ -63,6 +66,28 @@ class ApplicationController extends Controller
         );
 
         return ApiResponse::success(new ApplicationEventResource($event), 201);
+    }
+
+    public function materials(Application $application): JsonResponse
+    {
+        $this->authorize('view', $application);
+
+        return ApiResponse::success(ApplicationMaterialResource::collection($application->load('materials')->materials));
+    }
+
+    public function generateMaterials(
+        Request $request,
+        Application $application,
+        ApplicationMaterialGenerationService $generationService,
+    ): JsonResponse {
+        $this->authorize('update', $application);
+
+        $materials = $generationService->generate(
+            $application,
+            (bool) $request->boolean('force')
+        );
+
+        return ApiResponse::success(ApplicationMaterialResource::collection($materials), 201);
     }
 
     public function destroy(Application $application): JsonResponse

@@ -38,7 +38,10 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
 
     Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('applications/{application}/events', [ApplicationController::class, 'storeEvent']);
+    Route::get('applications/{application}/materials', [ApplicationController::class, 'materials']);
+    Route::post('applications/{application}/generate-materials', [ApplicationController::class, 'generateMaterials']);
     Route::post('candidate-profiles/import', [CandidateProfileController::class, 'import']);
     Route::apiResource('candidate-profiles', CandidateProfileController::class);
+    Route::post('answer-templates/bootstrap-defaults', [AnswerTemplateController::class, 'bootstrapDefaults']);
     Route::apiResource('answer-templates', AnswerTemplateController::class);
 });

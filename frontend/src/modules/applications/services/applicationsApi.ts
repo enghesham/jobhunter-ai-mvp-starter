@@ -1,7 +1,7 @@
 import api from '@/app/services/api'
 import type { CollectionResponse } from '@/shared/types'
 import { extractApiData, extractCollection } from '@/shared/utils/api'
-import type { Application, ApplicationEvent, ApplicationEventPayload, ApplicationPayload } from '@/modules/applications/types'
+import type { Application, ApplicationEvent, ApplicationEventPayload, ApplicationMaterial, ApplicationPayload } from '@/modules/applications/types'
 
 export async function listApplications(): Promise<CollectionResponse<Application>> {
   const response = await api.get('/jobhunter/applications')
@@ -36,6 +36,19 @@ export async function createApplicationEvent(id: number, payload: ApplicationEve
   })
 
   return extractApiData<ApplicationEvent>(response.data)
+}
+
+export async function listApplicationMaterials(id: number): Promise<ApplicationMaterial[]> {
+  const response = await api.get(`/jobhunter/applications/${id}/materials`)
+  return extractApiData<ApplicationMaterial[]>(response.data)
+}
+
+export async function generateApplicationMaterials(id: number, force = false): Promise<ApplicationMaterial[]> {
+  const response = await api.post(`/jobhunter/applications/${id}/generate-materials`, {
+    force,
+  })
+
+  return extractApiData<ApplicationMaterial[]>(response.data)
 }
 
 function normalizePayload(payload: Partial<ApplicationPayload>): Record<string, unknown> {

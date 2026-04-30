@@ -56,6 +56,9 @@ return [
         'resume_tailoring' => [
             'prompt_version' => env('JOBHUNTER_RESUME_PROMPT_VERSION', 'v1'),
         ],
+        'application_materials' => [
+            'prompt_version' => env('JOBHUNTER_APPLICATION_MATERIALS_PROMPT_VERSION', 'v1'),
+        ],
     ],
     'prompts' => [
         'job_analysis' => <<<'PROMPT'

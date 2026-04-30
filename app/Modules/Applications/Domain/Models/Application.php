@@ -55,4 +55,9 @@ class Application extends Model
     {
         return $this->hasMany(ApplicationEvent::class)->orderByDesc('occurred_at')->orderByDesc('created_at');
     }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(ApplicationMaterial::class)->orderBy('id');
+    }
 }

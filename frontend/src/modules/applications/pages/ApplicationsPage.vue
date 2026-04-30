@@ -287,6 +287,8 @@
             <div class="flex flex-wrap gap-2">
               <StatusTag :value="selectedApplication.status" />
               <Button label="Log Activity" icon="pi pi-history" size="small" severity="secondary" outlined @click="openEventDialog" />
+              <Button label="Generate Content Pack" icon="pi pi-file-edit" size="small" severity="help" outlined :loading="materialsGenerating" @click="handleGenerateMaterials(false)" />
+              <Button v-if="(selectedApplication.materials?.length || 0) > 0" label="Regenerate" icon="pi pi-refresh" size="small" severity="secondary" outlined :loading="materialsGenerating" @click="handleGenerateMaterials(true)" />
             </div>
           </div>
 
@@ -379,6 +381,38 @@
             </div>
           </div>
         </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h4 class="text-lg font-semibold text-slate-900">Application Content Pack</h4>
+            <Button label="Generate Pack" icon="pi pi-sparkles" size="small" text :loading="materialsGenerating" @click="handleGenerateMaterials(false)" />
+          </div>
+
+          <div v-if="(selectedApplication.materials?.length || 0) === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm text-slate-500">
+            No cover letter or reusable application answers have been generated yet.
+          </div>
+
+          <div v-else class="space-y-4">
+            <div
+              v-for="material in selectedApplication.materials || []"
+              :key="material.id"
+              class="rounded-2xl border border-slate-200 bg-white p-4"
+            >
+              <div class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p class="font-medium text-slate-900">{{ material.title }}</p>
+                  <p v-if="material.question" class="text-sm text-slate-500">{{ material.question }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <StatusTag :value="material.material_type" :label="material.material_type === 'cover_letter' ? 'Cover Letter' : 'Application Answer'" />
+                  <Button label="Copy" icon="pi pi-copy" size="small" text @click="copyMaterial(material.content)" />
+                </div>
+              </div>
+
+              <pre class="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">{{ material.content }}</pre>
+            </div>
+          </div>
+        </div>
       </div>
     </Dialog>
 
@@ -445,6 +479,7 @@ import {
   createApplication,
   createApplicationEvent,
   deleteApplication,
+  generateApplicationMaterials,
   getApplication,
   listApplications,
   updateApplication,
@@ -457,6 +492,7 @@ import PageHeader from '@/shared/components/PageHeader.vue'
 import SkeletonTable from '@/shared/components/SkeletonTable.vue'
 import StatusTag from '@/shared/components/StatusTag.vue'
 import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
+import { copyText } from '@/shared/utils/clipboard'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 
 interface ApplicationFormState {
@@ -508,6 +544,7 @@ const loading = ref(false)
 const saving = ref(false)
 const detailsLoading = ref(false)
 const eventSaving = ref(false)
+const materialsGenerating = ref(false)
 const pageError = ref('')
 const formError = ref('')
 const eventFormError = ref('')
@@ -797,6 +834,35 @@ async function submitEvent(): Promise<void> {
   }
 }
 
+async function handleGenerateMaterials(force: boolean): Promise<void> {
+  if (!selectedApplication.value) {
+    return
+  }
+
+  materialsGenerating.value = true
+
+  try {
+    await generateApplicationMaterials(selectedApplication.value.id, force)
+    selectedApplication.value = await getApplication(selectedApplication.value.id)
+    upsertApplication(selectedApplication.value)
+    toast.add({
+      severity: 'success',
+      summary: force ? 'Content pack regenerated' : 'Content pack generated',
+      detail: 'Cover letter and reusable application answers are ready.',
+      life: 3000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Generation failed',
+      detail: getApiErrorMessage(error, 'Failed to generate application materials.'),
+      life: 4000,
+    })
+  } finally {
+    materialsGenerating.value = false
+  }
+}
+
 function buildPayload(): ApplicationPayload {
   return {
     job_id: Number(form.job_id),
@@ -832,6 +898,15 @@ function fieldError(field: string): string | null {
 
 function eventFieldError(field: string): string | null {
   return eventValidationErrors.value[field]?.[0] ?? null
+}
+
+async function copyMaterial(content: string): Promise<void> {
+  try {
+    await copyText(content)
+    toast.add({ severity: 'success', summary: 'Copied', detail: 'Content copied to clipboard.', life: 2500 })
+  } catch {
+    toast.add({ severity: 'error', summary: 'Copy failed', detail: 'Could not copy the content.', life: 3000 })
+  }
 }
 
 function statusLabel(status: string): string {

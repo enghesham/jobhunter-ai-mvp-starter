@@ -216,6 +216,10 @@ Accept: application/json
 - `GET|POST|PUT|DELETE /api/jobhunter/candidate-profiles`
 - `POST /api/jobhunter/candidate-profiles/import`
 - `GET|POST|PUT|DELETE /api/jobhunter/applications`
+- `POST /api/jobhunter/applications/{id}/events`
+- `GET /api/jobhunter/applications/{id}/materials`
+- `POST /api/jobhunter/applications/{id}/generate-materials`
+- `POST /api/jobhunter/answer-templates/bootstrap-defaults`
 - `GET|POST|PUT|DELETE /api/jobhunter/answer-templates`
 
 ### Response Shape

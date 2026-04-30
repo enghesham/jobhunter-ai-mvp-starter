@@ -37,6 +37,29 @@ export interface ApplicationResume {
   pdf_path?: string | null
 }
 
+export interface ApplicationMaterial {
+  id: number
+  application_id: number
+  job_id: number
+  profile_id: number
+  answer_template_id?: number | null
+  material_type: 'cover_letter' | 'application_answer'
+  key: string
+  title: string
+  question?: string | null
+  content: string
+  metadata?: Record<string, unknown>
+  ai_provider?: string | null
+  ai_model?: string | null
+  ai_generated_at?: string | null
+  ai_confidence_score?: number | null
+  prompt_version?: string | null
+  ai_duration_ms?: number | null
+  fallback_used?: boolean
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 export interface Application {
   id: number
   job_id: number
@@ -56,6 +79,7 @@ export interface Application {
   candidate_profile?: CandidateProfile | { id: number; full_name?: string | null; headline?: string | null } | null
   resume?: ApplicationResume | null
   events?: ApplicationEvent[]
+  materials?: ApplicationMaterial[]
 }
 
 export interface ApplicationEvent {
