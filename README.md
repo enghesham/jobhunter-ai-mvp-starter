@@ -22,6 +22,28 @@ The current end-to-end flow is:
 6. Generate a tailored resume
 7. Create and track an application
 
+## Demo Readiness
+
+The project includes a complete seeded demo scenario for stabilization and walkthroughs.
+
+Run:
+
+```bash
+php artisan migrate:fresh --seed
+php artisan storage:link
+```
+
+Demo login:
+
+- Email: `demo@jobhunter.test`
+- Password: `password`
+
+The seeded scenario includes job sources, jobs, analyses, matches, tailored resumes, applications, timeline events, application materials, answer templates, and AI quality metadata.
+
+Full walkthrough:
+
+- `DEMO_SCENARIO.md`
+
 ## Current Scope
 
 ### Backend
