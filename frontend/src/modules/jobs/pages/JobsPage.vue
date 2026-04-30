@@ -13,7 +13,7 @@
       </template>
     </ErrorState>
 
-    <SkeletonTable v-if="loading" :columns="5" />
+    <SkeletonTable v-if="loading" :columns="6" />
 
     <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -69,6 +69,44 @@
         <Column field="status" header="Status">
           <template #body="{ data }">
             <Tag :severity="statusSeverity(data.status)" :value="data.status || 'unknown'" />
+          </template>
+        </Column>
+
+        <Column header="Insights">
+          <template #body="{ data }">
+            <div class="space-y-2">
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-if="data.analysis?.workplace_type"
+                  severity="contrast"
+                  :value="formatCategoryLabel(data.analysis.workplace_type)"
+                />
+                <Tag
+                  v-if="data.analysis?.years_experience_min || data.analysis?.years_experience_max"
+                  severity="secondary"
+                  :value="formatExperienceRange(data.analysis)"
+                />
+                <Tag
+                  v-if="data.analysis?.timezone_hint"
+                  severity="info"
+                  :value="data.analysis.timezone_hint"
+                />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-for="tech in previewItems(data.analysis?.tech_stack, 3)"
+                  :key="`${data.id}-tech-${tech}`"
+                  severity="success"
+                  :value="tech"
+                />
+                <span
+                  v-if="!data.analysis"
+                  class="text-xs text-slate-400"
+                >
+                  Run analysis to populate insights
+                </span>
+              </div>
+            </div>
           </template>
         </Column>
 
@@ -230,6 +268,26 @@
               <p class="text-slate-500">AI Provider</p>
               <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.ai_provider || 'Deterministic fallback' }}</p>
             </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Years of Experience</p>
+              <p class="mt-1 font-medium text-slate-900">{{ formatExperienceRange(selectedJob.analysis) }}</p>
+            </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Workplace Type</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.workplace_type || 'N/A' }}</p>
+            </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Salary</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.salary_text || 'N/A' }}</p>
+            </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Timezone</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.timezone_hint || 'N/A' }}</p>
+            </div>
+            <div class="rounded-2xl bg-white px-4 py-3">
+              <p class="text-slate-500">Location Hint</p>
+              <p class="mt-1 font-medium text-slate-900">{{ selectedJob.analysis.location_hint || 'N/A' }}</p>
+            </div>
           </div>
 
           <div class="mt-4">
@@ -243,6 +301,25 @@
             <p class="mb-2 text-sm font-medium text-slate-700">Tech Stack</p>
             <div class="flex flex-wrap gap-2">
               <Tag v-for="tech in selectedJob.analysis.tech_stack || []" :key="tech" :value="tech" severity="contrast" />
+            </div>
+          </div>
+
+          <div
+            v-if="analysisSkillCategoryEntries.length > 0"
+            class="mt-4 rounded-2xl bg-white px-4 py-3"
+          >
+            <p class="mb-3 text-sm font-medium text-slate-700">Skill Categories</p>
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div
+                v-for="[category, skills] in analysisSkillCategoryEntries"
+                :key="category"
+                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <p class="mb-2 text-sm font-medium capitalize text-slate-800">{{ formatCategoryLabel(category) }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <Tag v-for="skill in skills" :key="`${category}-${skill}`" :value="skill" severity="info" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -272,6 +349,21 @@
               <p><span class="font-medium text-slate-900">Fallback:</span> {{ yesNo(selectedJob.analysis.fallback_used) }}</p>
               <p><span class="font-medium text-slate-900">Generated At:</span> {{ formatDateTime(selectedJob.analysis.ai_generated_at) }}</p>
             </div>
+          </div>
+        </div>
+
+        <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-6 text-sm text-slate-600">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p class="font-medium text-slate-900">No analysis has been generated for this job yet.</p>
+              <p class="mt-1">Run AI analysis to extract skill requirements, workplace signals, salary hints, and structured metadata.</p>
+            </div>
+            <Button
+              label="Analyze Now"
+              icon="pi pi-chart-line"
+              :loading="actionLoading.analyze === selectedJob.id"
+              @click="handleAnalyze(selectedJob.id)"
+            />
           </div>
         </div>
 
@@ -636,6 +728,15 @@ const matchMetrics = computed(() => {
     { label: 'Domain Score', value: normalizeScore(latestMatch.value.domain_score) },
   ]
 })
+const analysisSkillCategoryEntries = computed(() => {
+  const categories = selectedJob.value?.analysis?.skill_categories
+
+  if (!categories) {
+    return []
+  }
+
+  return Object.entries(categories).filter(([, skills]) => Array.isArray(skills) && skills.length > 0)
+})
 const resumePreviewUrl = computed(() => {
   if (!generatedResume.value?.html_path) {
     return ''
@@ -952,6 +1053,41 @@ function formatDuration(value?: number | null): string {
 
 function yesNo(value?: boolean | null): string {
   return value ? 'Yes' : 'No'
+}
+
+function formatExperienceRange(analysis?: Job['analysis'] | null): string {
+  if (!analysis) {
+    return 'N/A'
+  }
+
+  const min = analysis.years_experience_min
+  const max = analysis.years_experience_max
+
+  if (typeof min === 'number' && typeof max === 'number') {
+    return `${min}-${max} years`
+  }
+
+  if (typeof min === 'number') {
+    return `${min}+ years`
+  }
+
+  if (typeof max === 'number') {
+    return `Up to ${max} years`
+  }
+
+  return 'N/A'
+}
+
+function formatCategoryLabel(category: string): string {
+  return category.replace(/_/g, ' ')
+}
+
+function previewItems(items?: string[] | null, limit = 3): string[] {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items.slice(0, limit)
 }
 
 function statusSeverity(status?: string | null): 'contrast' | 'success' | 'warn' | 'info' {

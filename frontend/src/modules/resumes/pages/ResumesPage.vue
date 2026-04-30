@@ -12,7 +12,7 @@
       </template>
     </ErrorState>
 
-    <SkeletonTable v-if="loading" :columns="5" />
+    <SkeletonTable v-if="loading" :columns="6" />
 
     <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -79,6 +79,41 @@
           </template>
         </Column>
 
+        <Column header="Resume Fit">
+          <template #body="{ data }">
+            <div class="space-y-2">
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-if="data.ai_provider"
+                  severity="info"
+                  :value="data.ai_provider"
+                />
+                <Tag
+                  severity="success"
+                  :value="`${data.selected_skills?.length || 0} skills`"
+                />
+                <Tag
+                  severity="warn"
+                  :value="`${data.ats_keywords?.length || 0} ATS`"
+                />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-if="(data.warnings_or_gaps?.length || 0) > 0"
+                  severity="danger"
+                  :value="`${data.warnings_or_gaps?.length || 0} gaps`"
+                />
+                <span
+                  v-else
+                  class="text-xs text-slate-400"
+                >
+                  No explicit gaps flagged
+                </span>
+              </div>
+            </div>
+          </template>
+        </Column>
+
         <Column header="Resume URL">
           <template #body="{ data }">
             <Button
@@ -121,9 +156,28 @@
           </div>
         </div>
 
-        <div v-if="selectedResume.professional_summary" class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+        <div class="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Candidate</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedResume.candidate_profile?.full_name || `Profile #${selectedResume.profile_id}` }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Company</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedResume.job?.company_name || 'Unknown company' }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Provider</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedResume.ai_provider || 'Deterministic fallback' }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Confidence</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedResume.ai_confidence_score ?? 0 }}%</p>
+          </div>
+        </div>
+
+        <div v-if="selectedResume.tailored_summary || selectedResume.professional_summary" class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-2 text-lg font-semibold text-slate-900">Professional Summary</h4>
-          <p class="text-sm leading-6 text-slate-700">{{ selectedResume.professional_summary }}</p>
+          <p class="text-sm leading-6 text-slate-700">{{ selectedResume.tailored_summary || selectedResume.professional_summary }}</p>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">
@@ -145,7 +199,7 @@
         <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <h4 class="mb-3 text-lg font-semibold text-slate-900">Experience Bullets</h4>
           <ul class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
-            <li v-for="bullet in selectedResume.selected_experience_bullets || []" :key="bullet">{{ bullet }}</li>
+            <li v-for="bullet in selectedResume.tailored_experience_bullets || selectedResume.selected_experience_bullets || []" :key="bullet">{{ bullet }}</li>
           </ul>
         </div>
 

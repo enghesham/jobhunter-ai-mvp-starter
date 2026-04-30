@@ -12,7 +12,7 @@
       </template>
     </ErrorState>
 
-    <SkeletonTable v-if="loading" :columns="6" />
+    <SkeletonTable v-if="loading" :columns="7" />
 
     <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -79,6 +79,35 @@
           </template>
         </Column>
 
+        <Column header="Fit Signals">
+          <template #body="{ data }">
+            <div class="space-y-2">
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-for="item in previewItems(data.strength_areas, 2)"
+                  :key="`${data.id}-strength-${item}`"
+                  severity="success"
+                  :value="item"
+                />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Tag
+                  v-for="item in previewItems(data.missing_skills, 2)"
+                  :key="`${data.id}-missing-${item}`"
+                  severity="danger"
+                  :value="item"
+                />
+                <span
+                  v-if="!(data.strength_areas?.length || data.missing_skills?.length)"
+                  class="text-xs text-slate-400"
+                >
+                  Detailed explanation available in preview
+                </span>
+              </div>
+            </div>
+          </template>
+        </Column>
+
         <Column header="Matched At">
           <template #body="{ data }">
             {{ formatDateTime(data.matched_at || data.created_at) }}
@@ -116,6 +145,25 @@
               <span class="text-slate-500">{{ metric.value }}%</span>
             </div>
             <ProgressBar :value="metric.value" />
+          </div>
+        </div>
+
+        <div class="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Candidate</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedMatch.candidate_profile?.full_name || `Profile #${selectedMatch.profile_id}` }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Matched At</p>
+            <p class="mt-1 font-medium text-slate-900">{{ formatDateTime(selectedMatch.matched_at || selectedMatch.created_at) }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Provider</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedMatch.ai_provider || 'Deterministic fallback' }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-3">
+            <p class="text-slate-500">Confidence</p>
+            <p class="mt-1 font-medium text-slate-900">{{ selectedMatch.ai_confidence_score ?? 0 }}%</p>
           </div>
         </div>
 
@@ -187,6 +235,7 @@ import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Knob from 'primevue/knob'
 import ProgressBar from 'primevue/progressbar'
+import Tag from 'primevue/tag'
 import { RouterLink } from 'vue-router'
 
 import type { JobMatch } from '@/modules/jobs/types'
@@ -293,5 +342,13 @@ function formatDuration(value?: number | null): string {
 
 function yesNo(value?: boolean | null): string {
   return value ? 'Yes' : 'No'
+}
+
+function previewItems(items?: string[] | null, limit = 2): string[] {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items.slice(0, limit)
 }
 </script>

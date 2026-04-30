@@ -8,8 +8,18 @@ export interface JobAnalysis {
   nice_to_have_skills?: string[]
   seniority?: string | null
   role_type?: string | null
+  years_experience_min?: number | null
+  years_experience_max?: number | null
+  workplace_type?: string | null
+  salary_text?: string | null
+  salary_min?: number | null
+  salary_max?: number | null
+  salary_currency?: string | null
+  location_hint?: string | null
+  timezone_hint?: string | null
   domain_tags?: string[]
   tech_stack?: string[]
+  skill_categories?: Record<string, string[]>
   responsibilities?: string[]
   company_context?: string | null
   ai_summary?: string | null
