@@ -8,6 +8,7 @@ use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Resume\Domain\Models\TailoredResume;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Application extends Model
 {
@@ -48,5 +49,10 @@ class Application extends Model
     public function tailoredResume(): BelongsTo
     {
         return $this->belongsTo(TailoredResume::class, 'tailored_resume_id');
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(ApplicationEvent::class)->orderByDesc('occurred_at')->orderByDesc('created_at');
     }
 }

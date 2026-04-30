@@ -17,19 +17,25 @@ const resolvedSeverity = computed<'contrast' | 'info' | 'success' | 'warn' | 'da
     case 'active':
     case 'matched':
     case 'offer':
+    case 'offer_received':
     case 'strong_match':
     case 'greenhouse':
       return 'success'
     case 'analyzed':
+    case 'interviewing':
     case 'interview':
     case 'good_match':
     case 'lever':
+    case 'follow_up_scheduled':
+    case 'response_received':
       return 'info'
     case 'applied':
     case 'apply':
     case 'ready_to_apply':
     case 'weak_match':
     case 'custom':
+    case 'applied_manually':
+    case 'follow_up_sent':
       return 'warn'
     case 'consider':
       return 'info'
@@ -38,6 +44,12 @@ const resolvedSeverity = computed<'contrast' | 'info' | 'success' | 'warn' | 'da
     case 'archived':
     case 'skip':
       return 'danger'
+    case 'application_created':
+    case 'resume_linked':
+    case 'status_changed':
+    case 'interview_scheduled':
+    case 'note_added':
+      return 'contrast'
     default:
       return 'contrast'
   }

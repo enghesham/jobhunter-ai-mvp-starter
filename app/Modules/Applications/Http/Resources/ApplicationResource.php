@@ -39,6 +39,7 @@ class ApplicationResource extends JsonResource
                 'html_path' => $this->tailoredResume?->html_path,
                 'pdf_path' => $this->tailoredResume?->pdf_path,
             ]),
+            'events' => ApplicationEventResource::collection($this->whenLoaded('events')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

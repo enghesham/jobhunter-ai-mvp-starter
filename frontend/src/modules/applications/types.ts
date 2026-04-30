@@ -1,6 +1,27 @@
 import type { CandidateProfile } from '@/modules/candidate-profile/types'
 
-export type ApplicationStatus = 'draft' | 'ready_to_apply' | 'applied' | 'rejected' | 'interview' | 'offer'
+export type ApplicationStatus =
+  | 'draft'
+  | 'ready_to_apply'
+  | 'applied'
+  | 'interviewing'
+  | 'rejected'
+  | 'offer'
+  | 'archived'
+
+export type ApplicationEventType =
+  | 'application_created'
+  | 'status_changed'
+  | 'resume_linked'
+  | 'applied_manually'
+  | 'interview_scheduled'
+  | 'follow_up_scheduled'
+  | 'follow_up_sent'
+  | 'response_received'
+  | 'offer_received'
+  | 'rejected'
+  | 'archived'
+  | 'note_added'
 
 export interface ApplicationJob {
   id: number
@@ -34,6 +55,16 @@ export interface Application {
   job?: ApplicationJob | null
   candidate_profile?: CandidateProfile | { id: number; full_name?: string | null; headline?: string | null } | null
   resume?: ApplicationResume | null
+  events?: ApplicationEvent[]
+}
+
+export interface ApplicationEvent {
+  id: number
+  type: ApplicationEventType
+  note?: string | null
+  metadata?: Record<string, unknown>
+  occurred_at?: string | null
+  created_at?: string | null
 }
 
 export interface ApplicationPayload {
@@ -44,4 +75,11 @@ export interface ApplicationPayload {
   resume_id?: number | null
   status: ApplicationStatus
   notes?: string | null
+}
+
+export interface ApplicationEventPayload {
+  type: ApplicationEventType
+  note?: string | null
+  metadata?: Record<string, unknown> | null
+  occurred_at?: string | null
 }

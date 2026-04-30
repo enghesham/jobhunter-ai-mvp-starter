@@ -4,8 +4,10 @@ namespace App\Modules\Applications\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Applications\Domain\Models\Application;
+use App\Modules\Applications\Http\Requests\StoreApplicationEventRequest;
 use App\Modules\Applications\Http\Requests\StoreApplicationRequest;
 use App\Modules\Applications\Http\Requests\UpdateApplicationRequest;
+use App\Modules\Applications\Http\Resources\ApplicationEventResource;
 use App\Modules\Applications\Http\Resources\ApplicationResource;
 use App\Services\Applications\ApplicationService;
 use App\Support\ApiResponse;
@@ -34,7 +36,7 @@ class ApplicationController extends Controller
     public function show(Application $application): JsonResponse
     {
         $this->authorize('view', $application);
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume'])));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events'])));
     }
 
     public function update(UpdateApplicationRequest $request, Application $application, ApplicationService $applicationService): JsonResponse
@@ -45,7 +47,22 @@ class ApplicationController extends Controller
             $request->validated() + ['user_id' => auth()->id()]
         );
 
-        return ApiResponse::success(new ApplicationResource($application));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events'])));
+    }
+
+    public function storeEvent(
+        StoreApplicationEventRequest $request,
+        Application $application,
+        ApplicationService $applicationService,
+    ): JsonResponse {
+        $this->authorize('update', $application);
+
+        $event = $applicationService->addEvent(
+            $application,
+            $request->validated() + ['user_id' => auth()->id()]
+        );
+
+        return ApiResponse::success(new ApplicationEventResource($event), 201);
     }
 
     public function destroy(Application $application): JsonResponse

@@ -1,7 +1,7 @@
 import api from '@/app/services/api'
 import type { CollectionResponse } from '@/shared/types'
 import { extractApiData, extractCollection } from '@/shared/utils/api'
-import type { Application, ApplicationPayload } from '@/modules/applications/types'
+import type { Application, ApplicationEvent, ApplicationEventPayload, ApplicationPayload } from '@/modules/applications/types'
 
 export async function listApplications(): Promise<CollectionResponse<Application>> {
   const response = await api.get('/jobhunter/applications')
@@ -25,6 +25,17 @@ export async function updateApplication(id: number, payload: Partial<Application
 
 export async function deleteApplication(id: number): Promise<void> {
   await api.delete(`/jobhunter/applications/${id}`)
+}
+
+export async function createApplicationEvent(id: number, payload: ApplicationEventPayload): Promise<ApplicationEvent> {
+  const response = await api.post(`/jobhunter/applications/${id}/events`, {
+    type: payload.type,
+    note: payload.note ?? null,
+    metadata: payload.metadata ?? null,
+    occurred_at: payload.occurred_at ?? null,
+  })
+
+  return extractApiData<ApplicationEvent>(response.data)
 }
 
 function normalizePayload(payload: Partial<ApplicationPayload>): Record<string, unknown> {

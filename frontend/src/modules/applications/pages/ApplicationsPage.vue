@@ -32,7 +32,16 @@
           />
         </div>
 
-        <Button label="New Application" icon="pi pi-plus" @click="openCreateDialog" />
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+          <SelectButton
+            v-model="viewMode"
+            :options="viewOptions"
+            option-label="label"
+            option-value="value"
+            aria-label="Applications view"
+          />
+          <Button label="New Application" icon="pi pi-plus" @click="openCreateDialog" />
+        </div>
       </div>
 
       <EmptyState
@@ -48,7 +57,7 @@
       </EmptyState>
 
       <DataTable
-        v-else
+        v-else-if="viewMode === 'table'"
         :value="filteredApplications"
         data-key="id"
         paginator
@@ -129,6 +138,70 @@
           </template>
         </Column>
       </DataTable>
+
+      <div v-else class="mt-6 overflow-x-auto pb-2">
+        <div class="flex min-w-max gap-4">
+          <div
+            v-for="column in kanbanColumns"
+            :key="column.value"
+            class="w-80 shrink-0 rounded-3xl border border-slate-200 bg-slate-50 p-4"
+            @dragover.prevent
+            @drop="handleDropOnStatus(column.value)"
+          >
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div class="space-y-1">
+                <h3 class="text-sm font-semibold text-slate-900">{{ column.label }}</h3>
+                <p class="text-xs text-slate-500">{{ applicationsByStatus[column.value]?.length || 0 }} applications</p>
+              </div>
+              <StatusTag :value="column.value" :label="column.label" />
+            </div>
+
+            <div v-if="(applicationsByStatus[column.value]?.length || 0) === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+              No applications in this stage.
+            </div>
+
+            <div v-else class="space-y-3">
+              <div
+                v-for="application in applicationsByStatus[column.value]"
+                :key="application.id"
+                draggable="true"
+                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
+                :class="{ 'opacity-60': statusUpdatingId === application.id }"
+                @dragstart="handleDragStart(application.id)"
+                @dragend="handleDragEnd"
+              >
+                <div class="space-y-3">
+                  <div>
+                    <p class="font-medium text-slate-900">{{ application.job?.title || `Job #${application.job_id}` }}</p>
+                    <p class="text-sm text-slate-500">{{ application.job?.company_name || 'Unknown company' }}</p>
+                  </div>
+
+                  <div class="text-sm text-slate-600">
+                    <p>{{ application.candidate_profile?.full_name || `Profile #${profileIdFor(application)}` }}</p>
+                    <p class="text-xs text-slate-400">{{ application.candidate_profile?.headline || 'Candidate profile' }}</p>
+                  </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <StatusTag :value="application.status" />
+                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">
+                      {{ formatDateTime(application.created_at) }}
+                    </span>
+                  </div>
+
+                  <div v-if="application.notes" class="line-clamp-3 text-sm leading-6 text-slate-600">
+                    {{ application.notes }}
+                  </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <Button label="View" icon="pi pi-eye" size="small" text @click="openDetailsDialog(application.id)" />
+                    <Button label="Edit" icon="pi pi-pencil" size="small" severity="secondary" outlined @click="openEditDialog(application.id)" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <Dialog v-model:visible="formDialogVisible" modal :header="formDialogTitle" :style="{ width: '42rem' }">
@@ -176,7 +249,7 @@
         </div>
 
         <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Resume selection is optional in this screen because the backend does not expose a `GET /jobhunter/resumes` endpoint yet. If an application was created from a generated resume, its linked resume will still appear in details.
+          Resume selection is optional in this screen. If an application was created from a generated resume, its linked resume will still appear in details.
         </div>
 
         <div class="space-y-2">
@@ -211,7 +284,10 @@
               <h3 class="text-2xl font-semibold text-slate-900">{{ selectedApplication.job?.title || `Job #${selectedApplication.job_id}` }}</h3>
               <p class="mt-1 text-sm text-slate-500">{{ selectedApplication.job?.company_name || 'Unknown company' }}</p>
             </div>
-            <StatusTag :value="selectedApplication.status" />
+            <div class="flex flex-wrap gap-2">
+              <StatusTag :value="selectedApplication.status" />
+              <Button label="Log Activity" icon="pi pi-history" size="small" severity="secondary" outlined @click="openEventDialog" />
+            </div>
           </div>
 
         <div class="grid gap-4 md:grid-cols-2">
@@ -268,7 +344,77 @@
             <p class="mt-1 font-medium text-slate-900">{{ formatDateTime(selectedApplication.interview_date) }}</p>
           </div>
         </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h4 class="text-lg font-semibold text-slate-900">Timeline</h4>
+            <Button label="Add Activity" icon="pi pi-plus" size="small" text @click="openEventDialog" />
+          </div>
+
+          <div v-if="(selectedApplication.events?.length || 0) === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm text-slate-500">
+            No timeline activity has been logged yet.
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="event in selectedApplication.events || []"
+              :key="event.id"
+              class="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+            >
+              <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <StatusTag :value="event.type" :label="eventTypeLabel(event.type)" />
+                    <span class="text-xs text-slate-500">{{ formatDateTime(event.occurred_at || event.created_at) }}</span>
+                  </div>
+                  <p v-if="event.note" class="text-sm leading-6 text-slate-700">{{ event.note }}</p>
+                </div>
+              </div>
+              <div
+                v-if="event.metadata && Object.keys(event.metadata).length > 0"
+                class="mt-3 rounded-2xl bg-slate-50 px-3 py-3 text-xs text-slate-600"
+              >
+                <pre class="overflow-auto whitespace-pre-wrap break-words">{{ JSON.stringify(event.metadata, null, 2) }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </Dialog>
+
+    <Dialog v-model:visible="eventDialogVisible" modal header="Log Application Activity" :style="{ width: '36rem' }">
+      <form class="space-y-4" @submit.prevent="submitEvent">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">Activity Type</label>
+          <Select v-model="eventForm.type" :options="eventTypeOptions" option-label="label" option-value="value" fluid />
+          <FormError :message="eventFieldError('type')" />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">Note</label>
+          <Textarea v-model="eventForm.note" fluid auto-resize rows="4" />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">Metadata JSON</label>
+          <Textarea v-model="eventForm.metadata_json" fluid auto-resize rows="5" placeholder='{"follow_up_date":"2026-05-07","interview_date":"2026-05-10T14:00:00Z"}' />
+          <FormError :message="eventFieldError('metadata')" />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">Occurred At</label>
+          <InputText v-model="eventForm.occurred_at" type="datetime-local" fluid />
+        </div>
+
+        <div v-if="eventFormError" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {{ eventFormError }}
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <Button type="button" label="Cancel" severity="secondary" text @click="eventDialogVisible = false" />
+          <LoadingButton type="submit" :loading="eventSaving" label="Log Activity" loading-label="Saving..." />
+        </div>
+      </form>
     </Dialog>
   </div>
 </template>
@@ -284,6 +430,7 @@ import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
+import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -291,11 +438,12 @@ import { useRouter } from 'vue-router'
 
 import type { CandidateProfile } from '@/modules/candidate-profile/types'
 import type { Job } from '@/modules/jobs/types'
-import type { Application, ApplicationPayload, ApplicationStatus } from '@/modules/applications/types'
+import type { Application, ApplicationEventPayload, ApplicationEventType, ApplicationPayload, ApplicationStatus } from '@/modules/applications/types'
 import { listProfiles } from '@/modules/candidate-profile/services/candidateProfilesApi'
 import { listJobs } from '@/modules/jobs/services/jobsApi'
 import {
   createApplication,
+  createApplicationEvent,
   deleteApplication,
   getApplication,
   listApplications,
@@ -318,6 +466,13 @@ interface ApplicationFormState {
   notes: string
 }
 
+interface ApplicationEventFormState {
+  type: ApplicationEventType
+  note: string
+  metadata_json: string
+  occurred_at: string
+}
+
 const toast = useToast()
 const confirm = useConfirm()
 const router = useRouter()
@@ -326,30 +481,52 @@ const statusOptions: Array<{ label: string; value: ApplicationStatus }> = [
   { label: 'Draft', value: 'draft' },
   { label: 'Ready To Apply', value: 'ready_to_apply' },
   { label: 'Applied', value: 'applied' },
+  { label: 'Interviewing', value: 'interviewing' },
   { label: 'Rejected', value: 'rejected' },
-  { label: 'Interview', value: 'interview' },
   { label: 'Offer', value: 'offer' },
+  { label: 'Archived', value: 'archived' },
 ]
 
 const statusOptionsWithAll = [{ label: 'All Statuses', value: 'all' as const }, ...statusOptions]
+const viewOptions = [
+  { label: 'Table', value: 'table' as const },
+  { label: 'Board', value: 'board' as const },
+]
+const eventTypeOptions: Array<{ label: string; value: ApplicationEventType }> = [
+  { label: 'Applied Manually', value: 'applied_manually' },
+  { label: 'Interview Scheduled', value: 'interview_scheduled' },
+  { label: 'Follow-Up Scheduled', value: 'follow_up_scheduled' },
+  { label: 'Follow-Up Sent', value: 'follow_up_sent' },
+  { label: 'Response Received', value: 'response_received' },
+  { label: 'Offer Received', value: 'offer_received' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Archived', value: 'archived' },
+  { label: 'Note Added', value: 'note_added' },
+]
 
 const loading = ref(false)
 const saving = ref(false)
 const detailsLoading = ref(false)
+const eventSaving = ref(false)
 const pageError = ref('')
 const formError = ref('')
+const eventFormError = ref('')
 const query = ref('')
 const debouncedQuery = useDebouncedValue(query, 250)
 const statusFilter = ref<'all' | ApplicationStatus>('all')
+const viewMode = ref<'table' | 'board'>('table')
 const applications = ref<Application[]>([])
 const jobs = ref<Job[]>([])
 const profiles = ref<CandidateProfile[]>([])
 const selectedApplication = ref<Application | null>(null)
 const formDialogVisible = ref(false)
 const detailsDialogVisible = ref(false)
+const eventDialogVisible = ref(false)
 const editingApplicationId = ref<number | null>(null)
 const statusUpdatingId = ref<number | null>(null)
+const draggingApplicationId = ref<number | null>(null)
 const validationErrors = ref<Record<string, string[]>>({})
+const eventValidationErrors = ref<Record<string, string[]>>({})
 
 const form = reactive<ApplicationFormState>({
   job_id: null,
@@ -358,8 +535,15 @@ const form = reactive<ApplicationFormState>({
   notes: '',
 })
 
+const eventForm = reactive<ApplicationEventFormState>({
+  type: 'note_added',
+  note: '',
+  metadata_json: '',
+  occurred_at: '',
+})
+
 const filteredApplications = computed(() => {
-    const search = debouncedQuery.value.trim().toLowerCase()
+  const search = debouncedQuery.value.trim().toLowerCase()
 
   return applications.value.filter((application) => {
     const matchesStatus = statusFilter.value === 'all' || application.status === statusFilter.value
@@ -373,6 +557,20 @@ const filteredApplications = computed(() => {
 
     return matchesStatus && matchesSearch
   })
+})
+
+const kanbanColumns = computed(() => statusOptions)
+
+const applicationsByStatus = computed<Record<ApplicationStatus, Application[]>>(() => {
+  const grouped = Object.fromEntries(
+    statusOptions.map((status) => [status.value, [] as Application[]]),
+  ) as Record<ApplicationStatus, Application[]>
+
+  for (const application of filteredApplications.value) {
+    grouped[application.status]?.push(application)
+  }
+
+  return grouped
 })
 
 const formDialogTitle = computed(() => (editingApplicationId.value ? 'Edit Application' : 'Create Application'))
@@ -440,6 +638,16 @@ async function openDetailsDialog(id: number): Promise<void> {
   } finally {
     detailsLoading.value = false
   }
+}
+
+function openEventDialog(): void {
+  eventDialogVisible.value = true
+  eventForm.type = 'note_added'
+  eventForm.note = ''
+  eventForm.metadata_json = ''
+  eventForm.occurred_at = ''
+  eventValidationErrors.value = {}
+  eventFormError.value = ''
 }
 
 async function submitForm(): Promise<void> {
@@ -519,6 +727,76 @@ async function handleQuickStatusUpdate(id: number, value: ApplicationStatus): Pr
   }
 }
 
+function handleDragStart(id: number): void {
+  draggingApplicationId.value = id
+}
+
+function handleDragEnd(): void {
+  draggingApplicationId.value = null
+}
+
+async function handleDropOnStatus(status: ApplicationStatus): Promise<void> {
+  const applicationId = draggingApplicationId.value
+
+  if (!applicationId) {
+    return
+  }
+
+  const application = applications.value.find((item) => item.id === applicationId)
+  draggingApplicationId.value = null
+
+  if (!application || application.status === status) {
+    return
+  }
+
+  await handleQuickStatusUpdate(applicationId, status)
+}
+
+async function submitEvent(): Promise<void> {
+  if (!selectedApplication.value) {
+    return
+  }
+
+  eventValidationErrors.value = {}
+  eventFormError.value = ''
+
+  const payload: ApplicationEventPayload = {
+    type: eventForm.type,
+    note: eventForm.note.trim() || null,
+    metadata: null,
+    occurred_at: eventForm.occurred_at ? new Date(eventForm.occurred_at).toISOString() : null,
+  }
+
+  if (eventForm.metadata_json.trim() !== '') {
+    try {
+      payload.metadata = JSON.parse(eventForm.metadata_json) as Record<string, unknown>
+    } catch {
+      eventValidationErrors.value = { metadata: ['Metadata must be valid JSON.'] }
+      return
+    }
+  }
+
+  eventSaving.value = true
+
+  try {
+    await createApplicationEvent(selectedApplication.value.id, payload)
+    selectedApplication.value = await getApplication(selectedApplication.value.id)
+    upsertApplication(selectedApplication.value)
+    eventDialogVisible.value = false
+    toast.add({
+      severity: 'success',
+      summary: 'Activity logged',
+      detail: 'Application timeline updated successfully.',
+      life: 3000,
+    })
+  } catch (error) {
+    eventValidationErrors.value = getApiValidationErrors(error)
+    eventFormError.value = getApiErrorMessage(error, 'Failed to log activity.')
+  } finally {
+    eventSaving.value = false
+  }
+}
+
 function buildPayload(): ApplicationPayload {
   return {
     job_id: Number(form.job_id),
@@ -552,8 +830,16 @@ function fieldError(field: string): string | null {
   return validationErrors.value[field]?.[0] ?? null
 }
 
+function eventFieldError(field: string): string | null {
+  return eventValidationErrors.value[field]?.[0] ?? null
+}
+
 function statusLabel(status: string): string {
   return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function eventTypeLabel(type: string): string {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function profileIdFor(application: Application): number {

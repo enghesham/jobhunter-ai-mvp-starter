@@ -2,7 +2,9 @@
 
 namespace App\Modules\Applications\Http\Requests;
 
+use App\Modules\Applications\Domain\Enums\ApplicationStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreApplicationRequest extends FormRequest
 {
@@ -18,7 +20,7 @@ class StoreApplicationRequest extends FormRequest
             'profile_id' => ['required', 'integer', 'exists:candidate_profiles,id'],
             'job_match_id' => ['nullable', 'integer', 'exists:job_matches,id'],
             'tailored_resume_id' => ['nullable', 'integer', 'exists:tailored_resumes,id'],
-            'status' => ['sometimes', 'string', 'in:draft,ready_to_apply,applied,rejected,interview,offer'],
+            'status' => ['sometimes', 'string', Rule::in([...ApplicationStatus::values(), 'interview'])],
             'applied_at' => ['nullable', 'date'],
             'follow_up_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
