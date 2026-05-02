@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobPath;
+use App\Modules\Copilot\Domain\Models\UserOnboardingState;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Modules\Matching\Domain\Models\JobMatch;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -72,5 +74,10 @@ class User extends Authenticatable
     public function jobPaths(): HasMany
     {
         return $this->hasMany(JobPath::class);
+    }
+
+    public function onboardingState(): HasOne
+    {
+        return $this->hasOne(UserOnboardingState::class);
     }
 }

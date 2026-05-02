@@ -7,6 +7,7 @@ use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
 use App\Modules\Copilot\Http\Controllers\CareerProfileController;
 use App\Modules\Copilot\Http\Controllers\JobPathController;
+use App\Modules\Copilot\Http\Controllers\OnboardingController;
 use App\Modules\Jobs\Http\Controllers\JobController;
 use App\Modules\Jobs\Http\Controllers\JobSourceController;
 use App\Modules\Matching\Http\Controllers\JobMatchController;
@@ -24,6 +25,10 @@ Route::prefix('auth')->name('auth.')->group(function () {
 
 Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->group(function () {
     Route::get('ai-quality', AiQualityController::class);
+    Route::get('onboarding', [OnboardingController::class, 'show']);
+    Route::post('onboarding/career-profile', [OnboardingController::class, 'careerProfile']);
+    Route::post('onboarding/suggest-job-paths', [OnboardingController::class, 'suggestJobPaths']);
+    Route::post('onboarding/complete', [OnboardingController::class, 'complete']);
 
     Route::apiResource('job-sources', JobSourceController::class);
     Route::post('job-sources/{jobSource}/scan', [JobSourceController::class, 'scan']);

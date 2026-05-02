@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/app/stores/authStore'
+import { useOnboardingStore } from '@/app/stores/onboardingStore'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -12,6 +13,7 @@ const JobsPage = () => import('@/modules/jobs/pages/JobsPage.vue')
 const JobSourcesPage = () => import('@/modules/job-sources/pages/JobSourcesPage.vue')
 const LoginPage = () => import('@/modules/auth/pages/LoginPage.vue')
 const MatchesPage = () => import('@/modules/matches/pages/MatchesPage.vue')
+const OnboardingPage = () => import('@/modules/onboarding/pages/OnboardingPage.vue')
 const RegisterPage = () => import('@/modules/auth/pages/RegisterPage.vue')
 const ResumesPage = () => import('@/modules/resumes/pages/ResumesPage.vue')
 const SettingsPage = () => import('@/modules/settings/SettingsPage.vue')
@@ -25,6 +27,7 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '', redirect: '/dashboard' },
+        { path: 'onboarding', component: OnboardingPage, meta: { title: 'Guided Setup', skipOnboardingRedirect: true } },
         { path: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard' } },
         { path: 'job-sources', component: JobSourcesPage, meta: { title: 'Job Sources' } },
         { path: 'jobs', component: JobsPage, meta: { title: 'Jobs' } },
@@ -67,6 +70,15 @@ router.beforeEach(async (to) => {
 
     if (!user) {
       return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  if (to.meta.requiresAuth && !to.meta.skipOnboardingRedirect) {
+    const onboardingStore = useOnboardingStore()
+    const onboarding = await onboardingStore.fetchOnboarding()
+
+    if (onboarding && !onboarding.state.is_completed) {
+      return { path: '/onboarding' }
     }
   }
 

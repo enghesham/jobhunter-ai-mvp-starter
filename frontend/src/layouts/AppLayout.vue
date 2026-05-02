@@ -108,20 +108,23 @@ const userMenu = ref()
 const navSections = [
   {
     label: 'Main',
-    items: [{ label: 'Dashboard', to: '/dashboard', icon: 'pi-home' }],
+    items: [
+      { label: 'Dashboard', to: '/dashboard', icon: 'pi-home' },
+      { label: 'Guided Setup', to: '/onboarding', icon: 'pi-compass' },
+    ],
   },
   {
     label: 'Job Management',
     items: [
       { label: 'Job Sources', to: '/job-sources', icon: 'pi-database' },
       { label: 'Jobs', to: '/jobs', icon: 'pi-briefcase' },
-      { label: 'Matches', to: '/matches', icon: 'pi-star' },
-      { label: 'Resumes', to: '/resumes', icon: 'pi-file-edit' },
+      { label: 'Best Matches', to: '/matches', icon: 'pi-star' },
+      { label: 'Apply Package', to: '/resumes', icon: 'pi-file-edit' },
     ],
   },
   {
     label: 'Candidate',
-    items: [{ label: 'Candidate Profile', to: '/candidate-profile', icon: 'pi-user' }],
+    items: [{ label: 'My Career Profile', to: '/candidate-profile', icon: 'pi-user' }],
   },
   {
     label: 'Applications',
@@ -156,7 +159,7 @@ const userMenuItems = computed<MenuItem[]>(() => [
     label: 'Workspace',
     items: [
       {
-        label: 'Candidate Profile',
+        label: 'My Career Profile',
         icon: 'pi pi-user',
         command: () => router.push('/candidate-profile'),
       },

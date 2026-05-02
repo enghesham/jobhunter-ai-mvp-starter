@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { loginRequest, logoutRequest, meRequest, registerRequest } from '@/modules/auth/services/authApi'
+import { useOnboardingStore } from '@/app/stores/onboardingStore'
 import type { AuthUser, LoginInput, RegisterInput } from '@/modules/auth/types'
 import { storageKeys } from '@/shared/utils/storage'
 
@@ -29,6 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearSession(): void {
     user.value = null
     persistToken(null)
+    useOnboardingStore().reset()
   }
 
   if (typeof window !== 'undefined' && !unauthorizedListenerRegistered) {
@@ -40,6 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function setSession(nextUser: AuthUser, nextToken: string): void {
+    useOnboardingStore().reset()
     user.value = nextUser
     persistToken(nextToken)
   }

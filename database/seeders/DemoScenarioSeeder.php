@@ -11,6 +11,7 @@ use App\Modules\Candidate\Domain\Models\CandidateExperience;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Candidate\Domain\Models\CandidateProject;
 use App\Modules\Copilot\Domain\Models\JobPath;
+use App\Modules\Copilot\Domain\Models\UserOnboardingState;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobAnalysis;
 use App\Modules\Jobs\Domain\Models\JobSource;
@@ -31,7 +32,8 @@ class DemoScenarioSeeder extends Seeder
     {
         $user = $this->seedUser();
         $profile = $this->seedCandidateProfile($user);
-        $this->seedJobPath($user, $profile);
+        $jobPath = $this->seedJobPath($user, $profile);
+        $this->seedOnboardingState($user, $profile, $jobPath);
         $source = $this->seedJobSource($user);
         $jobs = $this->seedJobs($user, $source);
 
@@ -171,6 +173,22 @@ class DemoScenarioSeeder extends Seeder
                 'last_scanned_at' => null,
                 'next_scan_at' => null,
                 'metadata' => ['demo_ready' => true, 'product_label' => 'Job Path'],
+            ],
+        );
+    }
+
+    private function seedOnboardingState(User $user, CandidateProfile $profile, JobPath $jobPath): UserOnboardingState
+    {
+        return UserOnboardingState::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'current_step' => 'done',
+                'completed_at' => now()->subDay(),
+                'metadata' => [
+                    'career_profile_id' => $profile->id,
+                    'selected_job_path_ids' => [$jobPath->id],
+                    'completed_by' => 'demo_seed',
+                ],
             ],
         );
     }
