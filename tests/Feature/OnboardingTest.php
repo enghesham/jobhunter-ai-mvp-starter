@@ -45,6 +45,31 @@ class OnboardingTest extends TestCase
         ]);
     }
 
+    public function test_onboarding_updates_existing_profile_when_user_goes_back_to_edit(): void
+    {
+        $user = User::factory()->create();
+        $profile = CandidateProfile::factory()->primary()->create([
+            'user_id' => $user->id,
+            'headline' => 'Old Headline',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/jobhunter/onboarding/career-profile', [
+            ...$this->profilePayload(),
+            'title' => 'Updated Backend Engineer',
+            'skills' => ['PHP', 'Laravel', 'Redis'],
+        ])->assertCreated()
+            ->assertJsonPath('data.career_profile.id', $profile->id)
+            ->assertJsonPath('data.career_profile.title', 'Updated Backend Engineer');
+
+        $this->assertSame(1, CandidateProfile::query()->where('user_id', $user->id)->count());
+        $this->assertDatabaseHas('candidate_profiles', [
+            'id' => $profile->id,
+            'headline' => 'Updated Backend Engineer',
+        ]);
+    }
+
     public function test_onboarding_suggests_job_paths_from_primary_profile(): void
     {
         $user = User::factory()->create();

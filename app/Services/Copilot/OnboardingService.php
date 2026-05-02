@@ -53,14 +53,19 @@ class OnboardingService
     public function saveCareerProfile(User $user, array $payload): array
     {
         return DB::transaction(function () use ($user, $payload): array {
-            $profile = $this->careerProfileService->create($user, [
+            $state = $this->state($user);
+            $existingProfile = $this->profileForOnboarding($user, $state);
+            $profilePayload = [
                 ...$payload,
                 'is_primary' => $payload['is_primary'] ?? true,
                 'source' => $payload['source'] ?? 'manual',
-            ]);
+            ];
+
+            $profile = $existingProfile
+                ? $this->careerProfileService->update($existingProfile, $profilePayload)
+                : $this->careerProfileService->create($user, $profilePayload);
 
             $understanding = $this->summarizeProfile($profile);
-            $state = $this->state($user);
             $state->forceFill([
                 'current_step' => 'review_profile',
                 'metadata' => array_merge($state->metadata ?? [], [
@@ -75,6 +80,28 @@ class OnboardingService
                 'understanding' => $understanding,
             ];
         });
+    }
+
+    private function profileForOnboarding(User $user, UserOnboardingState $state): ?CandidateProfile
+    {
+        $profileId = $state->metadata['career_profile_id'] ?? null;
+
+        if ($profileId) {
+            $profile = CandidateProfile::query()
+                ->where('user_id', $user->id)
+                ->whereKey($profileId)
+                ->first();
+
+            if ($profile) {
+                return $profile;
+            }
+        }
+
+        return CandidateProfile::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_primary')
+            ->latest()
+            ->first();
     }
 
     public function suggestJobPaths(User $user, ?int $careerProfileId = null): array

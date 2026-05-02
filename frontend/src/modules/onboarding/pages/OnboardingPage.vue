@@ -23,12 +23,14 @@
 
     <section v-else class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div v-if="activeStep === 0" class="space-y-6">
-        <div>
+        <div class="rounded-3xl bg-gradient-to-r from-sky-50 to-emerald-50 p-6">
           <h2 class="text-2xl font-semibold text-slate-900">Tell us who you are professionally</h2>
-          <p class="mt-2 text-sm text-slate-600">Manual input is supported now. CV file parsing can be added later; for now you can paste CV text as reference.</p>
+          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Keep this short. The best results come from a clear role, strong skills, one useful summary, and one recent experience with concrete work.
+          </p>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2">
+        <div class="grid gap-4 md:grid-cols-3">
           <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Display name</label>
             <InputText v-model="profileForm.display_name" fluid />
@@ -52,15 +54,17 @@
             <InputNumber v-model="profileForm.years_of_experience" fluid :min="0" :max="60" />
             <FormError :message="fieldError('years_of_experience')" />
           </div>
-          <div>
-            <label class="mb-2 block text-sm font-medium text-slate-700">Work preference</label>
-            <Select v-model="profileForm.preferred_workplace_type" :options="workplaceOptions" fluid />
-          </div>
         </div>
 
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-700">Professional summary</label>
-          <Textarea v-model="profileForm.professional_summary" fluid auto-resize rows="5" />
+          <Textarea
+            v-model="profileForm.professional_summary"
+            fluid
+            auto-resize
+            rows="4"
+            placeholder="Example: Backend engineer focused on Laravel APIs, queues, PostgreSQL, Redis, and production delivery."
+          />
           <FormError :message="fieldError('professional_summary')" />
         </div>
 
@@ -71,6 +75,72 @@
             <FormError :message="fieldError('skills')" />
           </div>
           <div>
+            <label class="mb-2 block text-sm font-medium text-slate-700">Preferred locations</label>
+            <Chips v-model="profileForm.preferred_locations" fluid separator="," />
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-900">Relevant experience</h3>
+              <p class="mt-1 text-sm text-slate-600">Optional, but strongly recommended for better matching and resume tailoring.</p>
+            </div>
+            <Button label="Add experience" icon="pi pi-plus" severity="secondary" @click="addExperience" />
+          </div>
+
+          <div v-if="profileExperiences.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
+            Add one recent or most relevant role. Focus on what you built, owned, improved, or delivered.
+          </div>
+
+          <div v-for="(experience, index) in profileExperiences" :key="index" class="mb-4 rounded-2xl bg-white p-4 last:mb-0">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <p class="font-medium text-slate-900">Experience {{ index + 1 }}</p>
+              <Button icon="pi pi-trash" severity="danger" text rounded @click="removeExperience(index)" />
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">Company</label>
+                <InputText v-model="experience.company" fluid />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">Title</label>
+                <InputText v-model="experience.title" fluid />
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-slate-700">What did you do?</label>
+                <Textarea
+                  v-model="experience.description"
+                  fluid
+                  auto-resize
+                  rows="3"
+                  placeholder="Example: Built Laravel APIs, queue workers, Redis workflows, and PostgreSQL-backed reporting for production systems."
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">Key achievements</label>
+                <Chips v-model="experience.achievements" fluid separator="," />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">Tech used</label>
+                <Chips v-model="experience.skills" fluid separator="," />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700"
+          @click="showAdvancedProfile = !showAdvancedProfile"
+        >
+          <span>Optional details</span>
+          <i :class="['pi', showAdvancedProfile ? 'pi-chevron-up' : 'pi-chevron-down']" />
+        </button>
+
+        <div v-if="showAdvancedProfile" class="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-2">
+          <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Secondary skills</label>
             <Chips v-model="profileForm.secondary_skills" fluid separator="," />
           </div>
@@ -79,21 +149,21 @@
             <Chips v-model="profileForm.industries" fluid separator="," />
           </div>
           <div>
-            <label class="mb-2 block text-sm font-medium text-slate-700">Preferred locations</label>
-            <Chips v-model="profileForm.preferred_locations" fluid separator="," />
+            <label class="mb-2 block text-sm font-medium text-slate-700">Work preference</label>
+            <Select v-model="profileForm.preferred_workplace_type" :options="workplaceOptions" fluid />
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium text-slate-700">Preferred job types</label>
             <Chips v-model="profileForm.preferred_job_types" fluid separator="," />
           </div>
+          <div class="md:col-span-2">
+            <label class="mb-2 block text-sm font-medium text-slate-700">Paste CV text, optional</label>
+            <Textarea v-model="profileForm.raw_cv_text" fluid auto-resize rows="5" placeholder="Paste CV text here if you want to keep it for future parsing." />
+          </div>
         </div>
 
-        <div>
-          <label class="mb-2 block text-sm font-medium text-slate-700">Paste CV text, optional</label>
-          <Textarea v-model="profileForm.raw_cv_text" fluid auto-resize rows="6" placeholder="Paste CV text here if you want to keep it for future parsing." />
-        </div>
-
-        <div class="flex justify-end">
+        <div class="flex flex-wrap justify-between gap-3">
+          <Button v-if="maxUnlockedStep > 0 || onboardingStore.isCompleted" label="Cancel edits" severity="secondary" @click="activeStep = onboardingStore.isCompleted ? 4 : 1" />
           <LoadingButton label="Review profile" icon="pi pi-arrow-right" :loading="savingProfile" @click="saveProfile" />
         </div>
       </div>
@@ -203,7 +273,10 @@
           <h2 class="text-2xl font-semibold text-slate-900">Your copilot is ready</h2>
           <p class="mt-2 text-sm text-slate-600">You created a Career Profile and selected Job Paths. Next, review your Best Matches.</p>
         </div>
-        <Button label="Open Best Matches" icon="pi pi-star" @click="router.push('/matches')" />
+        <div class="flex flex-wrap justify-center gap-3">
+          <Button label="Edit setup" icon="pi pi-pencil" severity="secondary" @click="editSetup" />
+          <Button label="Open Best Matches" icon="pi pi-star" @click="router.push('/matches')" />
+        </div>
       </div>
     </section>
   </div>
@@ -230,7 +303,7 @@ import FormError from '@/shared/components/FormError.vue'
 import { getApiErrorMessage, getApiValidationErrors } from '@/shared/utils/api'
 import { createJobPath } from '@/modules/job-paths/services/jobPathsApi'
 import { completeOnboarding, saveOnboardingCareerProfile, suggestOnboardingJobPaths } from '@/modules/onboarding/services/onboardingApi'
-import type { CareerUnderstanding, OnboardingCareerProfilePayload, SuggestedJobPath } from '@/modules/onboarding/types'
+import type { CareerUnderstanding, OnboardingCareerProfile, OnboardingCareerProfilePayload, OnboardingExperience, SuggestedJobPath } from '@/modules/onboarding/types'
 
 const router = useRouter()
 const toast = useToast()
@@ -243,11 +316,13 @@ const pageError = ref('')
 const savingProfile = ref(false)
 const loadingSuggestions = ref(false)
 const finishing = ref(false)
+const showAdvancedProfile = ref(false)
 const validationErrors = ref<Record<string, string[]>>({})
 const understanding = ref<CareerUnderstanding | null>(null)
 const careerProfileId = ref<number | null>(null)
 const suggestions = ref<SuggestedJobPath[]>([])
 const selectedSuggestionIndexes = ref<number[]>([])
+const profileExperiences = ref<OnboardingExperience[]>([])
 const preferences = ref({
   auto_collect_enabled: false,
   notifications_enabled: true,
@@ -291,6 +366,9 @@ async function loadOnboarding(): Promise<void> {
 
   understanding.value = payload.understanding
   careerProfileId.value = payload.career_profile?.id ?? null
+  if (payload.career_profile) {
+    populateProfileForm(payload.career_profile)
+  }
 
   if (payload.state.is_completed) {
     activeStep.value = 4
@@ -317,7 +395,7 @@ async function saveProfile(): Promise<void> {
   validationErrors.value = {}
 
   try {
-    const response = await saveOnboardingCareerProfile(profileForm.value)
+    const response = await saveOnboardingCareerProfile(profilePayload())
     onboardingStore.setPayload({
       state: response.state,
       career_profile: response.career_profile,
@@ -392,5 +470,78 @@ async function finishSetup(): Promise<void> {
 
 function fieldError(field: string): string | undefined {
   return validationErrors.value[field]?.[0]
+}
+
+function addExperience(): void {
+  profileExperiences.value.push(blankExperience())
+}
+
+function removeExperience(index: number): void {
+  profileExperiences.value.splice(index, 1)
+}
+
+function editSetup(): void {
+  activeStep.value = 0
+  maxUnlockedStep.value = 4
+}
+
+function populateProfileForm(profile: OnboardingCareerProfile): void {
+  profileForm.value = {
+    display_name: profile.display_name ?? '',
+    title: profile.title ?? '',
+    professional_summary: profile.professional_summary ?? '',
+    primary_role: profile.primary_role ?? '',
+    seniority_level: profile.seniority_level ?? 'senior',
+    years_of_experience: profile.years_of_experience ?? 0,
+    skills: profile.skills ?? [],
+    secondary_skills: profile.secondary_skills ?? [],
+    industries: profile.industries ?? [],
+    preferred_workplace_type: profile.preferred_workplace_type ?? 'remote',
+    preferred_locations: profile.preferred_locations ?? ['Remote'],
+    preferred_job_types: profile.preferred_job_types ?? ['full-time'],
+    raw_cv_text: profile.raw_cv_text ?? '',
+    source: 'manual',
+  }
+  profileExperiences.value = (profile.experiences ?? []).map((experience) => ({
+    company: experience.company ?? '',
+    title: experience.title ?? '',
+    start_date: experience.start_date ?? null,
+    end_date: experience.end_date ?? null,
+    description: experience.description ?? '',
+    achievements: experience.achievements ?? [],
+    skills: experience.skills ?? [],
+  }))
+}
+
+function profilePayload(): OnboardingCareerProfilePayload {
+  const experiences = profileExperiences.value
+    .map((experience) => ({
+      ...experience,
+      company: experience.company.trim(),
+      title: experience.title.trim(),
+      description: experience.description.trim(),
+      achievements: experience.achievements ?? [],
+      skills: experience.skills ?? [],
+    }))
+    .filter((experience) => experience.company !== '' && experience.title !== '' && experience.description !== '')
+
+  return {
+    ...profileForm.value,
+    title: profileForm.value.title.trim(),
+    display_name: profileForm.value.display_name.trim(),
+    professional_summary: profileForm.value.professional_summary.trim(),
+    primary_role: profileForm.value.primary_role?.trim() || null,
+    experiences,
+  }
+}
+
+function blankExperience(): OnboardingExperience {
+  return {
+    company: '',
+    title: '',
+    description: '',
+    achievements: [],
+    skills: [],
+  }
 }
 </script>

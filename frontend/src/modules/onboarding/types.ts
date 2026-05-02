@@ -28,8 +28,23 @@ export interface OnboardingCareerProfile {
   years_of_experience: number
   skills: string[]
   secondary_skills: string[]
+  industries?: string[]
   preferred_workplace_type?: string | null
   preferred_locations: string[]
+  preferred_job_types?: string[]
+  raw_cv_text?: string | null
+  experiences?: OnboardingExperience[]
+}
+
+export interface OnboardingExperience {
+  id?: number
+  company: string
+  title: string
+  start_date?: string | null
+  end_date?: string | null
+  description: string
+  achievements?: string[]
+  skills?: string[]
 }
 
 export interface OnboardingCareerProfilePayload {
@@ -46,6 +61,7 @@ export interface OnboardingCareerProfilePayload {
   preferred_locations: string[]
   preferred_job_types: string[]
   raw_cv_text?: string | null
+  experiences?: OnboardingExperience[]
   source?: 'manual' | 'cv_upload' | 'ai_generated'
 }
 
