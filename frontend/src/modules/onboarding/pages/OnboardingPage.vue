@@ -7,17 +7,16 @@
     />
 
     <div class="grid gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-5">
-      <button
+      <div
         v-for="(step, index) in steps"
         :key="step"
-        type="button"
-        class="rounded-2xl px-4 py-3 text-left text-sm transition"
+        class="rounded-2xl px-4 py-3 text-left text-sm"
         :class="activeStep === index ? 'bg-sky-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600'"
-        @click="activeStep = Math.min(index, maxUnlockedStep)"
+        :aria-current="activeStep === index ? 'step' : undefined"
       >
         <span class="block text-xs font-semibold uppercase tracking-[0.18em] opacity-75">Step {{ index + 1 }}</span>
         <span class="mt-1 block font-semibold">{{ step }}</span>
-      </button>
+      </div>
     </div>
 
     <ErrorState v-if="pageError" title="Could not continue onboarding" :message="pageError" @retry="loadOnboarding" />
