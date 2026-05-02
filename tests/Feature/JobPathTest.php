@@ -22,14 +22,48 @@ class JobPathTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.title', 'Backend Laravel Remote')
+            ->assertJsonPath('data.name', 'Backend Laravel Remote')
             ->assertJsonPath('data.target_roles.0', 'Senior Backend Engineer')
             ->assertJsonPath('data.is_active', true);
 
         $this->assertDatabaseHas('job_paths', [
             'user_id' => $user->id,
-            'title' => 'Backend Laravel Remote',
+            'name' => 'Backend Laravel Remote',
             'is_active' => true,
+        ]);
+    }
+
+    public function test_user_can_create_job_path_with_legacy_aliases(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/jobhunter/job-paths', [
+            'title' => 'Legacy Backend Path',
+            'goal' => 'Legacy payload should still work.',
+            'target_fields' => ['Backend Development'],
+            'work_modes' => ['remote'],
+            'employment_types' => ['full-time'],
+            'must_have_keywords' => ['Laravel'],
+            'nice_to_have_keywords' => ['Redis'],
+            'avoid_keywords' => ['sales'],
+            'min_fit_score' => 61,
+            'min_apply_score' => 76,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.name', 'Legacy Backend Path')
+            ->assertJsonPath('data.description', 'Legacy payload should still work.')
+            ->assertJsonPath('data.remote_preference', 'remote')
+            ->assertJsonPath('data.min_relevance_score', 61)
+            ->assertJsonPath('data.min_match_score', 76);
+
+        $this->assertDatabaseHas('job_paths', [
+            'user_id' => $user->id,
+            'name' => 'Legacy Backend Path',
+            'remote_preference' => 'remote',
+            'min_relevance_score' => 61,
+            'min_match_score' => 76,
         ]);
     }
 
@@ -69,12 +103,12 @@ class JobPathTest extends TestCase
 
         $mine = JobPath::factory()->create([
             'user_id' => $user->id,
-            'title' => 'Mine',
+            'name' => 'Mine',
         ]);
 
         JobPath::factory()->create([
             'user_id' => $otherUser->id,
-            'title' => 'Not Mine',
+            'name' => 'Not Mine',
         ]);
 
         Sanctum::actingAs($user);
@@ -83,7 +117,7 @@ class JobPathTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data.data')
             ->assertJsonPath('data.data.0.id', $mine->id)
-            ->assertJsonPath('data.data.0.title', 'Mine');
+            ->assertJsonPath('data.data.0.name', 'Mine');
     }
 
     public function test_validation_works(): void
@@ -92,17 +126,17 @@ class JobPathTest extends TestCase
 
         $this->postJson('/api/jobhunter/job-paths', [
             'target_roles' => 'Backend',
-            'work_modes' => ['spaceship'],
-            'employment_types' => ['permanent'],
-            'min_fit_score' => 101,
+            'remote_preference' => 'spaceship',
+            'preferred_job_types' => ['permanent'],
+            'min_relevance_score' => 101,
             'scan_interval_hours' => 0,
         ])->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'title',
+                'name',
                 'target_roles',
-                'work_modes.0',
-                'employment_types.0',
-                'min_fit_score',
+                'remote_preference',
+                'preferred_job_types.0',
+                'min_relevance_score',
                 'scan_interval_hours',
             ]);
     }
@@ -140,20 +174,24 @@ class JobPathTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return $overrides + [
-            'title' => 'Backend Laravel Remote',
-            'goal' => 'Find remote Laravel backend roles with strong API and database alignment.',
+            'name' => 'Backend Laravel Remote',
+            'description' => 'Find remote Laravel backend roles with strong API and database alignment.',
             'target_roles' => ['Senior Backend Engineer', 'Laravel Developer'],
-            'target_fields' => ['Backend Development', 'SaaS'],
+            'target_domains' => ['Backend Development', 'SaaS'],
+            'include_keywords' => ['Laravel', 'PHP', 'API'],
+            'exclude_keywords' => ['translation', 'sales'],
+            'required_skills' => ['Laravel', 'PHP', 'PostgreSQL'],
+            'optional_skills' => ['Redis', 'Docker', 'AWS'],
+            'seniority_levels' => ['senior'],
             'preferred_locations' => ['Remote', 'UAE'],
-            'work_modes' => ['remote'],
-            'employment_types' => ['full-time'],
-            'must_have_keywords' => ['Laravel', 'PHP', 'PostgreSQL'],
-            'nice_to_have_keywords' => ['Redis', 'Docker', 'AWS'],
-            'avoid_keywords' => ['translation', 'sales'],
-            'min_fit_score' => 60,
-            'min_apply_score' => 80,
+            'preferred_countries' => ['UAE'],
+            'preferred_job_types' => ['full-time'],
+            'remote_preference' => 'remote',
+            'min_relevance_score' => 60,
+            'min_match_score' => 75,
             'is_active' => true,
             'auto_collect_enabled' => false,
+            'notifications_enabled' => false,
         ];
     }
 }
