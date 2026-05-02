@@ -6,6 +6,7 @@ use App\Modules\Applications\Http\Controllers\ApplicationController;
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
 use App\Modules\Copilot\Http\Controllers\CareerProfileController;
+use App\Modules\Copilot\Http\Controllers\JobPathController;
 use App\Modules\Jobs\Http\Controllers\JobController;
 use App\Modules\Jobs\Http\Controllers\JobSourceController;
 use App\Modules\Matching\Http\Controllers\JobMatchController;
@@ -48,6 +49,8 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
         ->name('career-profiles.make-primary');
     Route::apiResource('career-profiles', CareerProfileController::class)
         ->parameters(['career-profiles' => 'careerProfile']);
+    Route::apiResource('job-paths', JobPathController::class)
+        ->parameters(['job-paths' => 'jobPath']);
     Route::post('candidate-profiles/import', [CandidateProfileController::class, 'import']);
     Route::apiResource('candidate-profiles', CandidateProfileController::class);
     Route::post('answer-templates/bootstrap-defaults', [AnswerTemplateController::class, 'bootstrapDefaults']);

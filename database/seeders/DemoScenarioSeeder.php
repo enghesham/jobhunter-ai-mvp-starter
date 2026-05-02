@@ -10,6 +10,7 @@ use App\Modules\Applications\Domain\Models\ApplicationMaterial;
 use App\Modules\Candidate\Domain\Models\CandidateExperience;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Candidate\Domain\Models\CandidateProject;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobAnalysis;
 use App\Modules\Jobs\Domain\Models\JobSource;
@@ -30,6 +31,7 @@ class DemoScenarioSeeder extends Seeder
     {
         $user = $this->seedUser();
         $profile = $this->seedCandidateProfile($user);
+        $this->seedJobPath($user, $profile);
         $source = $this->seedJobSource($user);
         $jobs = $this->seedJobs($user, $source);
 
@@ -138,6 +140,32 @@ class DemoScenarioSeeder extends Seeder
         ]);
 
         return $profile->fresh(['experiences', 'projects']);
+    }
+
+    private function seedJobPath(User $user, CandidateProfile $profile): JobPath
+    {
+        return JobPath::updateOrCreate(
+            ['user_id' => $user->id, 'title' => 'Senior Laravel Backend Remote'],
+            [
+                'career_profile_id' => $profile->id,
+                'goal' => 'Find strong remote backend roles that match Laravel, APIs, queues, databases, search, and pragmatic AI integration experience.',
+                'target_roles' => ['Senior Backend Engineer', 'Senior Laravel Developer', 'Backend Platform Engineer'],
+                'target_fields' => ['Backend Development', 'SaaS', 'Recruitment Tech', 'Fintech'],
+                'preferred_locations' => ['Remote', 'UAE', 'Saudi Arabia', 'Europe'],
+                'work_modes' => ['remote', 'hybrid'],
+                'employment_types' => ['full-time', 'contract'],
+                'must_have_keywords' => ['Laravel', 'PHP', 'REST APIs', 'PostgreSQL'],
+                'nice_to_have_keywords' => ['Redis', 'OpenSearch', 'Docker', 'AWS', 'Queues', 'AI Integrations'],
+                'avoid_keywords' => ['translation', 'sales', 'cold calling'],
+                'min_fit_score' => 65,
+                'min_apply_score' => 82,
+                'is_active' => true,
+                'auto_collect_enabled' => false,
+                'scan_interval_hours' => null,
+                'next_scan_at' => null,
+                'metadata' => ['demo_ready' => true, 'product_label' => 'Job Path'],
+            ],
+        );
     }
 
     private function seedJobSource(User $user): JobSource

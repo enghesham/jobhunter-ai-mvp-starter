@@ -25,11 +25,16 @@ return new class extends Migration
             $table->unsignedTinyInteger('min_fit_score')->default(60);
             $table->unsignedTinyInteger('min_apply_score')->default(80);
             $table->boolean('is_active')->default(true);
+            $table->boolean('auto_collect_enabled')->default(false);
+            $table->unsignedSmallInteger('scan_interval_hours')->nullable();
+            $table->timestamp('next_scan_at')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamp('last_checked_at')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'is_active']);
+            $table->index(['user_id', 'is_active', 'auto_collect_enabled']);
+            $table->index('next_scan_at');
             $table->index('career_profile_id');
         });
     }
