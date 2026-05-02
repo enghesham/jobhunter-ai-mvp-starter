@@ -34,6 +34,14 @@ class OpenAiProvider implements AiProviderInterface
         );
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return $this->requestJson(
+            prompt: $prompt,
+            systemInstruction: 'You are a job seeker copilot. Suggest practical job paths using only provided profile facts. Return valid JSON only.'
+        );
+    }
+
     public function name(): string
     {
         return 'openai';

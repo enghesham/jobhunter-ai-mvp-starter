@@ -28,6 +28,15 @@ class BedrockProvider implements AiProviderInterface
         return $this->analyzeJob($job, $prompt);
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        if (! config('services.bedrock.key') || ! config('services.bedrock.secret') || ! config('services.bedrock.region')) {
+            throw new AiProviderException('Bedrock credentials are not configured.');
+        }
+
+        throw new AiProviderException('BedrockProvider is a safe stub and is not implemented yet.');
+    }
+
     public function name(): string
     {
         return 'bedrock';

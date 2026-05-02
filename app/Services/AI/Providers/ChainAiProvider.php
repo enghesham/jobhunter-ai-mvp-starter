@@ -47,6 +47,15 @@ class ChainAiProvider implements AiProviderInterface
         );
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return $this->attempt(
+            operation: 'job_path_suggestions',
+            callback: fn (AiProviderInterface $provider): ?array => $provider->suggestJobPaths($profile, $prompt),
+            context: ['profile_id' => $profile->id]
+        );
+    }
+
     public function name(): string
     {
         if ($this->resolvedProvider) {

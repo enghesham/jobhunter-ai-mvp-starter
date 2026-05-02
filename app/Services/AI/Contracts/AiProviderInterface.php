@@ -24,6 +24,11 @@ interface AiProviderInterface
      */
     public function tailorResume(CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array;
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array;
+
     public function name(): string;
 
     public function model(): ?string;

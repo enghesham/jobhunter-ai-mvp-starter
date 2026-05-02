@@ -5,14 +5,20 @@ namespace App\Services\Copilot;
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\UserOnboardingState;
+use App\Services\AI\Contracts\AiProviderInterface;
+use App\Services\AI\Prompts\SuggestJobPathsPrompt;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class OnboardingService
 {
     public function __construct(
         private readonly CareerProfileService $careerProfileService,
+        private readonly AiProviderInterface $aiProvider,
+        private readonly SuggestJobPathsPrompt $suggestJobPathsPrompt,
     ) {
     }
 
@@ -156,10 +162,6 @@ class OnboardingService
                 'headline' => $profile->headline,
                 'summary' => $profile->base_summary,
             ],
-            'suggested_job_directions' => array_map(
-                fn (array $path): string => $path['name'],
-                array_slice($this->buildSuggestions($profile), 0, 4),
-            ),
         ];
     }
 
@@ -199,6 +201,17 @@ class OnboardingService
      * @return array<int, array<string, mixed>>
      */
     private function buildSuggestions(CandidateProfile $profile): array
+    {
+        $fallbackSuggestions = $this->buildRuleBasedSuggestions($profile);
+        $aiSuggestions = $this->buildAiSuggestions($profile, $fallbackSuggestions);
+
+        return $aiSuggestions !== [] ? $aiSuggestions : $fallbackSuggestions;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildRuleBasedSuggestions(CandidateProfile $profile): array
     {
         $role = $profile->primary_role
             ?: Arr::first($profile->preferred_roles ?? [])
@@ -267,6 +280,162 @@ class OnboardingService
         );
 
         return array_slice($this->uniqueByName($suggestions), 0, 4);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $fallbackSuggestions
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildAiSuggestions(CandidateProfile $profile, array $fallbackSuggestions): array
+    {
+        try {
+            $response = $this->aiProvider->suggestJobPaths(
+                $profile,
+                $this->suggestJobPathsPrompt->build($profile, $fallbackSuggestions),
+            );
+
+            if (! is_array($response)) {
+                return [];
+            }
+
+            $suggestions = $this->normalizeAiSuggestions($profile, $response);
+
+            if ($suggestions === []) {
+                Log::warning('AI job path suggestions returned no valid paths.', [
+                    'provider' => $this->aiProvider->name(),
+                    'operation' => 'job_path_suggestions',
+                    'profile_id' => $profile->id,
+                ]);
+            }
+
+            return $suggestions;
+        } catch (Throwable $exception) {
+            Log::warning('AI job path suggestions failed. Falling back to deterministic suggestions.', [
+                'provider' => $this->aiProvider->name(),
+                'operation' => 'job_path_suggestions',
+                'profile_id' => $profile->id,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $response
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeAiSuggestions(CandidateProfile $profile, array $response): array
+    {
+        $items = $response['job_paths'] ?? $response['suggestions'] ?? $response['data'] ?? [];
+
+        if (isset($response['name']) && is_string($response['name'])) {
+            $items = [$response];
+        }
+
+        if (! is_array($items) || ! array_is_list($items)) {
+            return [];
+        }
+
+        $suggestions = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $suggestion = $this->normalizeAiPath($profile, $item);
+
+            if ($suggestion !== null) {
+                $suggestions[] = $suggestion;
+            }
+        }
+
+        return array_slice($this->uniqueByName($suggestions), 0, 4);
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>|null
+     */
+    private function normalizeAiPath(CandidateProfile $profile, array $item): ?array
+    {
+        $name = $this->cleanText($item['name'] ?? null, 80);
+
+        if ($name === null) {
+            return null;
+        }
+
+        $targetRoles = $this->stringList($item['target_roles'] ?? []);
+        if ($targetRoles === []) {
+            $targetRoles = array_values(array_filter(array_unique([
+                $profile->primary_role,
+                ...($profile->preferred_roles ?? []),
+                $profile->headline,
+            ])));
+        }
+
+        $requiredSkills = $this->stringList($item['required_skills'] ?? []);
+        if ($requiredSkills === []) {
+            $requiredSkills = array_slice($this->stringList($profile->core_skills ?? []), 0, 5);
+        }
+
+        $optionalSkills = $this->stringList($item['optional_skills'] ?? []);
+        if ($optionalSkills === []) {
+            $optionalSkills = array_slice($this->stringList($profile->nice_to_have_skills ?? []), 0, 5);
+        }
+
+        $locations = $this->stringList($item['preferred_locations'] ?? []);
+        if ($locations === []) {
+            $locations = $this->stringList($profile->preferred_locations ?: ['Remote']);
+        }
+
+        $domains = $this->stringList($item['target_domains'] ?? []);
+        if ($domains === []) {
+            $domains = $this->stringList($profile->industries ?: ['Technology']);
+        }
+
+        $includeKeywords = array_values(array_unique(array_filter([
+            ...$this->stringList($item['include_keywords'] ?? []),
+            ...$targetRoles,
+            ...$requiredSkills,
+        ])));
+
+        return [
+            'career_profile_id' => $profile->id,
+            'name' => $name,
+            'description' => $this->cleanText($item['description'] ?? null, 220),
+            'target_roles' => array_slice($targetRoles, 0, 5),
+            'target_domains' => array_slice($domains, 0, 8),
+            'include_keywords' => array_slice($includeKeywords, 0, 15),
+            'exclude_keywords' => array_values(array_unique([
+                ...$this->stringList($item['exclude_keywords'] ?? []),
+                'translation',
+                'sales',
+                'cold calling',
+            ])),
+            'required_skills' => array_slice($requiredSkills, 0, 10),
+            'optional_skills' => array_slice($optionalSkills, 0, 10),
+            'seniority_levels' => $this->stringList($item['seniority_levels'] ?? [$profile->seniority_level ?: $this->inferSeniority((int) $profile->years_experience)]),
+            'preferred_locations' => array_slice($locations, 0, 10),
+            'preferred_countries' => array_slice($this->stringList($item['preferred_countries'] ?? []), 0, 10),
+            'preferred_job_types' => $this->stringList($item['preferred_job_types'] ?? ($profile->preferred_job_types ?: ['full-time'])),
+            'remote_preference' => $this->normalizeRemotePreference(is_string($item['remote_preference'] ?? null) ? $item['remote_preference'] : $profile->preferred_workplace_type),
+            'min_relevance_score' => $this->boundedScore($item['min_relevance_score'] ?? 60, 60),
+            'min_match_score' => $this->boundedScore($item['min_match_score'] ?? 75, 75),
+            'salary_min' => $profile->salary_expectation ? (int) $profile->salary_expectation : null,
+            'salary_currency' => $profile->salary_currency,
+            'is_active' => true,
+            'auto_collect_enabled' => false,
+            'notifications_enabled' => false,
+            'metadata' => [
+                'suggested_by' => 'ai_guided_onboarding',
+                'ai_provider' => $this->aiProvider->name(),
+                'ai_model' => $this->aiProvider->model(),
+                'ai_generated_at' => now()->toISOString(),
+            ],
+        ];
     }
 
     /**
@@ -339,6 +508,49 @@ class OnboardingService
                 'suggested_by' => 'guided_onboarding',
             ],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function stringList(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn (mixed $item): string => trim((string) $item),
+            $value
+        ))));
+    }
+
+    private function cleanText(mixed $value, int $maxLength): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $text = trim(preg_replace('/\s+/', ' ', $value) ?: '');
+
+        if ($text === '') {
+            return null;
+        }
+
+        return mb_substr($text, 0, $maxLength);
+    }
+
+    private function boundedScore(mixed $value, int $default): int
+    {
+        if (! is_numeric($value)) {
+            return $default;
+        }
+
+        return max(0, min(100, (int) $value));
     }
 
     private function inferSeniority(int $years): string

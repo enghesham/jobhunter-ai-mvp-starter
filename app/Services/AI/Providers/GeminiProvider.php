@@ -25,6 +25,11 @@ class GeminiProvider implements AiProviderInterface
         return $this->requestJson($prompt);
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return $this->requestJson($prompt);
+    }
+
     public function name(): string
     {
         return 'gemini';

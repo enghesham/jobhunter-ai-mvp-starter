@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobPath;
+use App\Modules\Jobs\Domain\Models\Job;
+use App\Services\AI\Contracts\AiProviderInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -96,6 +98,129 @@ class OnboardingTest extends TestCase
             ->assertJsonPath('data.career_profile.id', $profile->id)
             ->assertJsonCount(4, 'data.suggestions')
             ->assertJsonPath('data.suggestions.0.career_profile_id', $profile->id);
+    }
+
+    public function test_onboarding_can_use_ai_job_path_suggestions(): void
+    {
+        $user = User::factory()->create();
+        $profile = CandidateProfile::factory()->primary()->create([
+            'user_id' => $user->id,
+            'primary_role' => 'Backend Developer',
+            'seniority_level' => 'senior',
+            'core_skills' => ['PHP', 'Laravel', 'PostgreSQL'],
+            'preferred_locations' => ['Remote'],
+            'preferred_workplace_type' => 'remote',
+        ]);
+
+        app()->instance(AiProviderInterface::class, new class implements AiProviderInterface {
+            public function analyzeJob(Job $job, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function explainMatch(CandidateProfile $profile, Job $job, array $scoreBreakdown, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function tailorResume(CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+            {
+                return [
+                    'job_paths' => [
+                        [
+                            'name' => 'AI Backend Platform Engineer',
+                            'description' => 'Target backend platform roles built around Laravel, APIs, and PostgreSQL.',
+                            'target_roles' => ['Backend Platform Engineer'],
+                            'target_domains' => ['SaaS'],
+                            'include_keywords' => ['Laravel', 'API Platform'],
+                            'required_skills' => ['Laravel', 'PostgreSQL'],
+                            'optional_skills' => ['Redis'],
+                            'seniority_levels' => ['senior'],
+                            'preferred_locations' => ['Remote'],
+                            'preferred_job_types' => ['full-time'],
+                            'remote_preference' => 'remote',
+                        ],
+                    ],
+                ];
+            }
+
+            public function name(): string
+            {
+                return 'test-ai';
+            }
+
+            public function model(): ?string
+            {
+                return 'test-model';
+            }
+        });
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/jobhunter/onboarding/suggest-job-paths')
+            ->assertOk()
+            ->assertJsonPath('data.career_profile.id', $profile->id)
+            ->assertJsonPath('data.suggestions.0.name', 'AI Backend Platform Engineer')
+            ->assertJsonPath('data.suggestions.0.metadata.suggested_by', 'ai_guided_onboarding')
+            ->assertJsonPath('data.suggestions.0.metadata.ai_provider', 'test-ai');
+    }
+
+    public function test_onboarding_falls_back_when_ai_job_path_payload_is_invalid(): void
+    {
+        $user = User::factory()->create();
+        CandidateProfile::factory()->primary()->create([
+            'user_id' => $user->id,
+            'primary_role' => 'Backend Developer',
+            'seniority_level' => 'senior',
+            'core_skills' => ['PHP', 'Laravel', 'PostgreSQL', 'Redis'],
+            'nice_to_have_skills' => ['Vue.js', 'Docker'],
+            'preferred_locations' => ['Remote'],
+            'preferred_workplace_type' => 'remote',
+        ]);
+
+        app()->instance(AiProviderInterface::class, new class implements AiProviderInterface {
+            public function analyzeJob(Job $job, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function explainMatch(CandidateProfile $profile, Job $job, array $scoreBreakdown, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function tailorResume(CandidateProfile $profile, Job $job, array $resumeContext, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+            {
+                return ['job_paths' => [['description' => 'Missing required name']]];
+            }
+
+            public function name(): string
+            {
+                return 'test-ai';
+            }
+
+            public function model(): ?string
+            {
+                return 'test-model';
+            }
+        });
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/jobhunter/onboarding/suggest-job-paths')
+            ->assertOk()
+            ->assertJsonCount(4, 'data.suggestions')
+            ->assertJsonPath('data.suggestions.0.metadata.suggested_by', 'guided_onboarding');
     }
 
     public function test_existing_profile_and_job_path_counts_as_completed_onboarding(): void

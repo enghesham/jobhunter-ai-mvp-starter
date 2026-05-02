@@ -45,6 +45,11 @@ class AiFirstUpgradeTest extends TestCase
                 return null;
             }
 
+            public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'fake-ai';
@@ -99,6 +104,11 @@ class AiFirstUpgradeTest extends TestCase
                     'warnings_or_gaps' => ['Kubernetes is not clearly shown.'],
                     'confidence_score' => 80,
                 ];
+            }
+
+            public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+            {
+                return null;
             }
 
             public function name(): string

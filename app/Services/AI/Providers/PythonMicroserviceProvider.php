@@ -54,6 +54,22 @@ class PythonMicroserviceProvider implements AiProviderInterface
         ]);
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return $this->requestJson('suggest_job_paths', $prompt, [
+            'profile' => [
+                'id' => $profile->id,
+                'full_name' => $profile->full_name,
+                'headline' => $profile->headline,
+                'primary_role' => $profile->primary_role,
+                'seniority_level' => $profile->seniority_level,
+                'years_experience' => $profile->years_experience,
+                'core_skills' => $profile->core_skills,
+                'nice_to_have_skills' => $profile->nice_to_have_skills,
+            ],
+        ]);
+    }
+
     public function name(): string
     {
         return 'python_microservice';

@@ -23,6 +23,11 @@ class NullAiProvider implements AiProviderInterface
         return null;
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return null;
+    }
+
     public function name(): string
     {
         return 'null';

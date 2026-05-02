@@ -93,6 +93,11 @@ class FakeAiProvider implements AiProviderInterface
         return $this->respond();
     }
 
+    public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+    {
+        return $this->respond();
+    }
+
     public function name(): string
     {
         return $this->providerName;

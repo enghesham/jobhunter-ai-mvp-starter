@@ -189,12 +189,6 @@
               <Tag v-for="skill in understanding.skills" :key="skill" :value="skill" severity="info" />
             </div>
           </div>
-          <div class="rounded-2xl bg-slate-50 p-5 md:col-span-2">
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Suggested directions</p>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <Tag v-for="direction in understanding.suggested_job_directions" :key="direction" :value="direction" severity="success" />
-            </div>
-          </div>
         </div>
 
         <div class="flex flex-wrap justify-between gap-3">

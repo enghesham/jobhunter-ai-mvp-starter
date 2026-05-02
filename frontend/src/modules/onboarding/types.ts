@@ -15,7 +15,6 @@ export interface CareerUnderstanding {
     headline?: string | null
     summary?: string | null
   }
-  suggested_job_directions: string[]
 }
 
 export interface OnboardingCareerProfile {
