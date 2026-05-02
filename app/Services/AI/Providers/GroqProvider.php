@@ -42,6 +42,14 @@ class GroqProvider implements AiProviderInterface
         );
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return $this->requestJson(
+            prompt: $prompt,
+            systemInstruction: 'You generate job application packages using only provided facts. Do not invent candidate experience. Return valid JSON only.'
+        );
+    }
+
     public function name(): string
     {
         return 'groq';

@@ -37,6 +37,11 @@ class AiAwareJobAnalysisServiceTest extends TestCase
                 return null;
             }
 
+            public function generateApplyPackage(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'null';
@@ -76,6 +81,11 @@ class AiAwareJobAnalysisServiceTest extends TestCase
             }
 
             public function suggestJobPaths(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function generateApplyPackage(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
             {
                 return null;
             }
@@ -125,6 +135,11 @@ class AiAwareJobAnalysisServiceTest extends TestCase
             }
 
             public function suggestJobPaths(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function generateApplyPackage(\App\Modules\Candidate\Domain\Models\CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
             {
                 return null;
             }

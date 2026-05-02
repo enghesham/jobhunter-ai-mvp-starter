@@ -98,6 +98,11 @@ class FakeAiProvider implements AiProviderInterface
         return $this->respond();
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return $this->respond();
+    }
+
     public function name(): string
     {
         return $this->providerName;

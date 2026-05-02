@@ -29,6 +29,12 @@ interface AiProviderInterface
      */
     public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array;
 
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>|null
+     */
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array;
+
     public function name(): string;
 
     public function model(): ?string;

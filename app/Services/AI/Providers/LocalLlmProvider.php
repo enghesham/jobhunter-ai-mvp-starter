@@ -31,6 +31,11 @@ class LocalLlmProvider implements AiProviderInterface
         return $this->requestJson($prompt);
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return $this->requestJson($prompt);
+    }
+
     public function name(): string
     {
         return 'local_llm';

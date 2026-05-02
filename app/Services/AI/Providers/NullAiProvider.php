@@ -28,6 +28,11 @@ class NullAiProvider implements AiProviderInterface
         return null;
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return null;
+    }
+
     public function name(): string
     {
         return 'null';

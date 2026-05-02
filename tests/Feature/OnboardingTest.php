@@ -149,6 +149,11 @@ class OnboardingTest extends TestCase
                 ];
             }
 
+            public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'test-ai';
@@ -202,6 +207,11 @@ class OnboardingTest extends TestCase
             public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
             {
                 return ['job_paths' => [['description' => 'Missing required name']]];
+            }
+
+            public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+            {
+                return null;
             }
 
             public function name(): string

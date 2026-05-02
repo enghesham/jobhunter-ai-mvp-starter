@@ -70,6 +70,23 @@ class PythonMicroserviceProvider implements AiProviderInterface
         ]);
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return $this->requestJson('generate_apply_package', $prompt, [
+            'profile' => [
+                'id' => $profile->id,
+                'full_name' => $profile->full_name,
+                'headline' => $profile->headline,
+            ],
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'company_name' => $job->company_name,
+            ],
+            'context' => $context,
+        ]);
+    }
+
     public function name(): string
     {
         return 'python_microservice';

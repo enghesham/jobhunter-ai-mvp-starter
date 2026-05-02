@@ -50,6 +50,11 @@ class AiFirstUpgradeTest extends TestCase
                 return null;
             }
 
+            public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+            {
+                return null;
+            }
+
             public function name(): string
             {
                 return 'fake-ai';
@@ -107,6 +112,11 @@ class AiFirstUpgradeTest extends TestCase
             }
 
             public function suggestJobPaths(CandidateProfile $profile, string $prompt): ?array
+            {
+                return null;
+            }
+
+            public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
             {
                 return null;
             }

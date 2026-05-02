@@ -2,6 +2,7 @@
 
 use App\Modules\Answers\Http\Controllers\AnswerTemplateController;
 use App\Modules\AI\Http\Controllers\AiQualityController;
+use App\Modules\Applications\Http\Controllers\ApplyPackageController;
 use App\Modules\Applications\Http\Controllers\ApplicationController;
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
@@ -45,6 +46,7 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::get('jobs/{job}/analysis', [JobController::class, 'analysis']);
     Route::post('jobs/{job}/analyze', [JobController::class, 'analyze'])->middleware('throttle:ai-heavy');
     Route::post('jobs/{job}/match', [JobController::class, 'match'])->middleware('throttle:ai-heavy');
+    Route::post('jobs/{job}/apply-package', [ApplyPackageController::class, 'storeForJob'])->middleware('throttle:ai-heavy');
     Route::get('matches', [JobMatchController::class, 'index']);
     Route::get('matches/{match}/explanation', [JobMatchController::class, 'explanation']);
     Route::get('resumes', [ResumeController::class, 'index']);
@@ -52,6 +54,10 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::get('resumes/{resume}/download-pdf', [ResumeController::class, 'downloadPdf'])->name('resumes.download-pdf');
     Route::post('jobs/{job}/generate-resume', [ResumeController::class, 'generate'])->middleware('throttle:ai-heavy');
 
+    Route::get('apply-packages', [ApplyPackageController::class, 'index']);
+    Route::get('apply-packages/{applyPackage}', [ApplyPackageController::class, 'show']);
+    Route::patch('apply-packages/{applyPackage}', [ApplyPackageController::class, 'update']);
+    Route::post('apply-packages/{applyPackage}/create-application', [ApplyPackageController::class, 'createApplication']);
     Route::apiResource('applications', ApplicationController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('applications/{application}/events', [ApplicationController::class, 'storeEvent']);
     Route::get('applications/{application}/materials', [ApplicationController::class, 'materials']);

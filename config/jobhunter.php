@@ -67,6 +67,9 @@ return [
         'application_materials' => [
             'prompt_version' => env('JOBHUNTER_APPLICATION_MATERIALS_PROMPT_VERSION', 'v1'),
         ],
+        'apply_package' => [
+            'prompt_version' => env('JOBHUNTER_APPLY_PACKAGE_PROMPT_VERSION', 'v1'),
+        ],
     ],
     'prompts' => [
         'job_analysis' => <<<'PROMPT'

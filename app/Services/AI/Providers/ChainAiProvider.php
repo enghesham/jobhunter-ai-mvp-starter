@@ -56,6 +56,15 @@ class ChainAiProvider implements AiProviderInterface
         );
     }
 
+    public function generateApplyPackage(CandidateProfile $profile, Job $job, array $context, string $prompt): ?array
+    {
+        return $this->attempt(
+            operation: 'apply_package',
+            callback: fn (AiProviderInterface $provider): ?array => $provider->generateApplyPackage($profile, $job, $context, $prompt),
+            context: ['job_id' => $job->id, 'profile_id' => $profile->id]
+        );
+    }
+
     public function name(): string
     {
         if ($this->resolvedProvider) {
