@@ -5,6 +5,7 @@ use App\Modules\AI\Http\Controllers\AiQualityController;
 use App\Modules\Applications\Http\Controllers\ApplicationController;
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
+use App\Modules\Copilot\Http\Controllers\CareerProfileController;
 use App\Modules\Jobs\Http\Controllers\JobController;
 use App\Modules\Jobs\Http\Controllers\JobSourceController;
 use App\Modules\Matching\Http\Controllers\JobMatchController;
@@ -43,6 +44,10 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::post('applications/{application}/events', [ApplicationController::class, 'storeEvent']);
     Route::get('applications/{application}/materials', [ApplicationController::class, 'materials']);
     Route::post('applications/{application}/generate-materials', [ApplicationController::class, 'generateMaterials']);
+    Route::post('career-profiles/{careerProfile}/make-primary', [CareerProfileController::class, 'makePrimary'])
+        ->name('career-profiles.make-primary');
+    Route::apiResource('career-profiles', CareerProfileController::class)
+        ->parameters(['career-profiles' => 'careerProfile']);
     Route::post('candidate-profiles/import', [CandidateProfileController::class, 'import']);
     Route::apiResource('candidate-profiles', CandidateProfileController::class);
     Route::post('answer-templates/bootstrap-defaults', [AnswerTemplateController::class, 'bootstrapDefaults']);
