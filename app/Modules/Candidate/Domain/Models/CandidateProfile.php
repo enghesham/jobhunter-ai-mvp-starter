@@ -3,6 +3,7 @@
 namespace App\Modules\Candidate\Domain\Models;
 
 use App\Models\User;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,5 +48,10 @@ class CandidateProfile extends Model
     public function projects(): HasMany
     {
         return $this->hasMany(CandidateProject::class, 'profile_id');
+    }
+
+    public function jobPaths(): HasMany
+    {
+        return $this->hasMany(JobPath::class, 'career_profile_id');
     }
 }

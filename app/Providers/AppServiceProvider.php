@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Answers\Domain\Models\AnswerTemplate;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Services\AI\AiProviderManager;
@@ -15,6 +16,7 @@ use App\Services\JobAnalysis\Contracts\JobAnalysisServiceInterface;
 use App\Policies\AnswerTemplatePolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\CandidateProfilePolicy;
+use App\Policies\JobPathPolicy;
 use App\Policies\JobPolicy;
 use App\Policies\JobSourcePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -46,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Job::class, JobPolicy::class);
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(AnswerTemplate::class, AnswerTemplatePolicy::class);
+        Gate::policy(JobPath::class, JobPathPolicy::class);
 
         RateLimiter::for('ai-heavy', function (Request $request) {
             /** @var User|null $user */

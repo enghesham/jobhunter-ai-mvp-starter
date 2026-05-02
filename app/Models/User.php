@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Modules\Matching\Domain\Models\JobMatch;
@@ -66,5 +67,10 @@ class User extends Authenticatable
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    public function jobPaths(): HasMany
+    {
+        return $this->hasMany(JobPath::class);
     }
 }
