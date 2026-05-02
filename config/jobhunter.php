@@ -11,6 +11,13 @@ return [
     'ai_quality_dashboard_enabled' => filter_var(env('JOBHUNTER_AI_QUALITY_DASHBOARD_ENABLED', true), FILTER_VALIDATE_BOOL),
     'scan_hours' => env('JOBHUNTER_SCAN_HOURS', 6),
     'match_threshold' => env('JOBHUNTER_MATCH_THRESHOLD', 75),
+    'opportunities' => [
+        'max_jobs_per_refresh' => (int) env('JOBHUNTER_OPPORTUNITY_MAX_JOBS_PER_REFRESH', 200),
+        'default_min_relevance_score' => (int) env('JOBHUNTER_OPPORTUNITY_MIN_RELEVANCE_SCORE', 45),
+        'store_below_threshold' => filter_var(env('JOBHUNTER_OPPORTUNITY_STORE_BELOW_THRESHOLD', false), FILTER_VALIDATE_BOOL),
+        'auto_ai_evaluation_enabled' => filter_var(env('JOBHUNTER_OPPORTUNITY_AUTO_AI_EVALUATION_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'max_ai_evaluations_per_refresh' => (int) env('JOBHUNTER_OPPORTUNITY_MAX_AI_EVALUATIONS_PER_REFRESH', 0),
+    ],
     'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
     'pdf_driver' => env('JOBHUNTER_PDF_DRIVER', 'html'),
     'pdf' => [

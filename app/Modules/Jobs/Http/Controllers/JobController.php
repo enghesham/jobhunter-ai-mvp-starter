@@ -30,7 +30,7 @@ class JobController extends Controller
     public function show(Job $job): JsonResponse
     {
         $this->authorize('view', $job);
-        return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches.profile')));
+        return ApiResponse::success(new JobResource($job->load('analysis', 'source', 'matches.profile', 'matches.jobPath')));
     }
 
     public function analyze(Request $request, Job $job): JsonResponse
@@ -51,12 +51,17 @@ class JobController extends Controller
         try {
             $validated = $request->validated();
             $profileId = (int) ($validated['profile_id'] ?? 1);
-            MatchJobToProfileJob::dispatchSync($job->id, $profileId, (bool) ($validated['force'] ?? false));
+            MatchJobToProfileJob::dispatchSync(
+                $job->id,
+                $profileId,
+                (bool) ($validated['force'] ?? false),
+                isset($validated['job_path_id']) ? (int) $validated['job_path_id'] : null,
+            );
         } catch (Throwable $exception) {
             return ApiResponse::error($exception->getMessage(), 422);
         }
 
-        return ApiResponse::success(new JobResource($job->fresh(['analysis', 'source', 'matches.profile'])));
+        return ApiResponse::success(new JobResource($job->fresh(['analysis', 'source', 'matches.profile', 'matches.jobPath'])));
     }
 
     public function analysis(Job $job): JsonResponse

@@ -8,6 +8,7 @@ use Database\Factories\JobPathFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 class JobPath extends Model
@@ -92,5 +93,10 @@ class JobPath extends Model
     public function careerProfile(): BelongsTo
     {
         return $this->belongsTo(CandidateProfile::class, 'career_profile_id');
+    }
+
+    public function opportunities(): HasMany
+    {
+        return $this->hasMany(JobOpportunity::class);
     }
 }

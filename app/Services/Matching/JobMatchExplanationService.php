@@ -24,12 +24,12 @@ class JobMatchExplanationService
      * @param array<string, mixed> $scoreBreakdown
      * @return array<string, mixed>
      */
-    public function explain(CandidateProfile $profile, Job $job, array $scoreBreakdown, bool $force = false): array
+    public function explain(CandidateProfile $profile, Job $job, array $scoreBreakdown, bool $force = false, string $contextKey = 'primary'): array
     {
         $promptVersion = $this->prompt->version();
         $inputHash = $this->inputHash($profile, $job, $scoreBreakdown, $promptVersion);
 
-        if (! $force && ($cached = $this->cached($profile, $job, $promptVersion, $inputHash))) {
+        if (! $force && ($cached = $this->cached($profile, $job, $promptVersion, $inputHash, $contextKey))) {
             $this->logResult($job, $profile, true, (bool) $cached['fallback_used'], 0, $cached['ai_provider']);
 
             return array_merge($cached, ['cache_hit' => true]);
@@ -150,7 +150,7 @@ class JobMatchExplanationService
     /**
      * @return array<string, mixed>|null
      */
-    private function cached(CandidateProfile $profile, Job $job, string $promptVersion, string $inputHash): ?array
+    private function cached(CandidateProfile $profile, Job $job, string $promptVersion, string $inputHash, string $contextKey): ?array
     {
         if (! config('jobhunter.ai_cache_enabled', true)) {
             return null;
@@ -158,6 +158,7 @@ class JobMatchExplanationService
 
         $match = $job->matches()
             ->where('profile_id', $profile->id)
+            ->where('context_key', $contextKey)
             ->first();
 
         if (! $match || $match->prompt_version !== $promptVersion || $match->input_hash !== $inputHash) {

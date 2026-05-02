@@ -111,6 +111,7 @@ const navSections = [
     items: [
       { label: 'Dashboard', to: '/dashboard', icon: 'pi-home' },
       { label: 'Guided Setup', to: '/onboarding', icon: 'pi-compass' },
+      { label: 'Opportunities', to: '/opportunities', icon: 'pi-sparkles' },
     ],
   },
   {

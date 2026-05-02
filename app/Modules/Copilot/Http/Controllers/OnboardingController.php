@@ -28,7 +28,7 @@ class OnboardingController extends Controller
             'state' => new OnboardingStateResource($state),
             'career_profile' => $profile ? new CareerProfileResource($profile) : null,
             'understanding' => $profile ? $onboardingService->summarizeProfile($profile) : null,
-            'best_matches_path' => '/matches',
+            'best_matches_path' => '/opportunities',
         ]);
     }
 
@@ -63,7 +63,7 @@ class OnboardingController extends Controller
 
         return ApiResponse::success([
             'state' => new OnboardingStateResource($state),
-            'best_matches_path' => '/matches',
+            'best_matches_path' => '/opportunities',
         ]);
     }
 }

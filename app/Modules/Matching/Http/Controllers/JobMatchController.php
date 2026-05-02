@@ -14,7 +14,7 @@ class JobMatchController extends Controller
     {
         $matches = JobMatch::query()
             ->where('user_id', auth()->id())
-            ->with(['job', 'profile'])
+            ->with(['job', 'profile', 'jobPath'])
             ->latest('matched_at')
             ->paginate();
 
@@ -25,6 +25,6 @@ class JobMatchController extends Controller
     {
         abort_if($match->user_id !== auth()->id(), 404);
 
-        return ApiResponse::success(new JobMatchResource($match->load(['job', 'profile'])));
+        return ApiResponse::success(new JobMatchResource($match->load(['job', 'profile', 'jobPath'])));
     }
 }

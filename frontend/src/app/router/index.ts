@@ -14,6 +14,7 @@ const JobSourcesPage = () => import('@/modules/job-sources/pages/JobSourcesPage.
 const LoginPage = () => import('@/modules/auth/pages/LoginPage.vue')
 const MatchesPage = () => import('@/modules/matches/pages/MatchesPage.vue')
 const OnboardingPage = () => import('@/modules/onboarding/pages/OnboardingPage.vue')
+const OpportunitiesPage = () => import('@/modules/opportunities/pages/OpportunitiesPage.vue')
 const RegisterPage = () => import('@/modules/auth/pages/RegisterPage.vue')
 const ResumesPage = () => import('@/modules/resumes/pages/ResumesPage.vue')
 const SettingsPage = () => import('@/modules/settings/SettingsPage.vue')
@@ -30,6 +31,7 @@ const router = createRouter({
         { path: 'onboarding', component: OnboardingPage, meta: { title: 'Guided Setup', skipOnboardingRedirect: true } },
         { path: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard' } },
         { path: 'job-sources', component: JobSourcesPage, meta: { title: 'Job Sources' } },
+        { path: 'opportunities', component: OpportunitiesPage, meta: { title: 'Opportunities' } },
         { path: 'jobs', component: JobsPage, meta: { title: 'Jobs' } },
         { path: 'candidate-profile', component: CandidateProfilePage, meta: { title: 'Candidate Profile' } },
         { path: 'matches', component: MatchesPage, meta: { title: 'Matches' } },

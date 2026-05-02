@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Matching\Domain\Models\JobMatch;
 use App\Services\Matching\JobMatchExplanationService;
@@ -17,7 +18,12 @@ class MatchJobToProfileJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public int $jobId, public int $profileId, public bool $force = false)
+    public function __construct(
+        public int $jobId,
+        public int $profileId,
+        public bool $force = false,
+        public ?int $jobPathId = null,
+    )
     {
     }
 
@@ -25,13 +31,17 @@ class MatchJobToProfileJob implements ShouldQueue
     {
         $job = Job::with('analysis')->find($this->jobId);
         $profile = CandidateProfile::with(['experiences', 'projects'])->find($this->profileId);
+        $jobPath = $this->jobPathId
+            ? JobPath::query()->where('user_id', $profile?->user_id)->whereKey($this->jobPathId)->first()
+            : null;
 
         if (! $job || ! $job->analysis || ! $profile) {
             return;
         }
 
-        $score = $scoringService->score($profile, $job);
-        $explanation = $explanationService->explain($profile, $job, $score, $this->force);
+        $contextKey = $jobPath ? "path:{$jobPath->id}" : 'primary';
+        $score = $scoringService->score($profile, $job, $jobPath);
+        $explanation = $explanationService->explain($profile, $job, $score, $this->force, $contextKey);
 
         if (($explanation['cache_hit'] ?? false) === true) {
             $job->forceFill(['status' => 'matched'])->save();
@@ -40,9 +50,10 @@ class MatchJobToProfileJob implements ShouldQueue
         }
 
         JobMatch::updateOrCreate(
-            ['job_id' => $job->id, 'profile_id' => $profile->id],
+            ['job_id' => $job->id, 'profile_id' => $profile->id, 'context_key' => $contextKey],
             [
                 'user_id' => $profile->user_id ?: $job->user_id,
+                'job_path_id' => $jobPath?->id,
                 'overall_score' => $score['overall_score'],
                 'title_score' => $score['title_score'],
                 'skill_score' => $score['skill_score'],
@@ -51,6 +62,8 @@ class MatchJobToProfileJob implements ShouldQueue
                 'location_score' => $score['location_score'],
                 'backend_focus_score' => $score['backend_focus_score'],
                 'domain_score' => $score['domain_score'],
+                'path_relevance_score' => $score['path_relevance_score'] ?? null,
+                'path_relevance_reasons' => $score['path_relevance_reasons'] ?? [],
                 'notes' => $score['notes'],
                 'why_matched' => $explanation['why_matched'] ?? null,
                 'missing_skills' => $explanation['missing_skills'] ?? [],

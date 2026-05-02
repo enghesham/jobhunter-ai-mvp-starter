@@ -6,6 +6,7 @@ use App\Modules\Applications\Http\Controllers\ApplicationController;
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Candidate\Http\Controllers\CandidateProfileController;
 use App\Modules\Copilot\Http\Controllers\CareerProfileController;
+use App\Modules\Copilot\Http\Controllers\JobOpportunityController;
 use App\Modules\Copilot\Http\Controllers\JobPathController;
 use App\Modules\Copilot\Http\Controllers\OnboardingController;
 use App\Modules\Jobs\Http\Controllers\JobController;
@@ -25,6 +26,11 @@ Route::prefix('auth')->name('auth.')->group(function () {
 
 Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->group(function () {
     Route::get('ai-quality', AiQualityController::class);
+    Route::get('opportunities', [JobOpportunityController::class, 'index']);
+    Route::post('opportunities/refresh', [JobOpportunityController::class, 'refresh']);
+    Route::post('opportunities/{opportunity}/evaluate', [JobOpportunityController::class, 'evaluate'])->middleware('throttle:ai-heavy');
+    Route::post('opportunities/{opportunity}/hide', [JobOpportunityController::class, 'hide']);
+    Route::post('opportunities/{opportunity}/restore', [JobOpportunityController::class, 'restore']);
     Route::get('onboarding', [OnboardingController::class, 'show']);
     Route::post('onboarding/career-profile', [OnboardingController::class, 'careerProfile']);
     Route::post('onboarding/suggest-job-paths', [OnboardingController::class, 'suggestJobPaths']);

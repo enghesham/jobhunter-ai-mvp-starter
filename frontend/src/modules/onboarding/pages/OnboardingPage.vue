@@ -265,11 +265,11 @@
         </div>
         <div>
           <h2 class="text-2xl font-semibold text-slate-900">Your copilot is ready</h2>
-          <p class="mt-2 text-sm text-slate-600">You created a Career Profile and selected Job Paths. Next, review your Best Matches.</p>
+          <p class="mt-2 text-sm text-slate-600">You created a Career Profile and selected Job Paths. Next, find opportunities and evaluate only the jobs you care about.</p>
         </div>
         <div class="flex flex-wrap justify-center gap-3">
           <Button label="Edit setup" icon="pi pi-pencil" severity="secondary" @click="editSetup" />
-          <Button label="Open Best Matches" icon="pi pi-star" @click="router.push('/matches')" />
+          <Button label="Find Opportunities" icon="pi pi-sparkles" @click="router.push('/opportunities')" />
         </div>
       </div>
     </section>

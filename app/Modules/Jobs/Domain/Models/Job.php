@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Modules\Copilot\Domain\Models\JobOpportunity;
 use App\Modules\Matching\Domain\Models\JobMatch;
 
 class Job extends Model
@@ -57,5 +58,10 @@ class Job extends Model
     public function matches(): HasMany
     {
         return $this->hasMany(JobMatch::class, 'job_id');
+    }
+
+    public function opportunities(): HasMany
+    {
+        return $this->hasMany(JobOpportunity::class, 'job_id');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Matching;
 
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 
 class JobMatchScoringService
@@ -10,7 +11,7 @@ class JobMatchScoringService
     /**
      * @return array<string, mixed>
      */
-    public function score(CandidateProfile $profile, Job $job): array
+    public function score(CandidateProfile $profile, Job $job, ?JobPath $jobPath = null): array
     {
         $analysis = $job->analysis;
         $candidateSkills = $this->normalize($profile->core_skills ?? []);
@@ -28,7 +29,7 @@ class JobMatchScoringService
         $backendFocusScore = $analysis?->role_type === 'backend' ? 95 : ($analysis?->role_type === 'full_stack' ? 82 : 60);
         $domainScore = $this->domainScore($profile, $analysis?->domain_tags ?? []);
 
-        $overall = (int) round(
+        $baseOverall = (int) round(
             ($skillScore * 0.30)
             + ($experienceScore * 0.20)
             + ($titleScore * 0.20)
@@ -37,6 +38,10 @@ class JobMatchScoringService
             + ($backendFocusScore * 0.03)
             + ($domainScore * 0.02)
         );
+        $pathScore = $jobPath ? $this->pathRelevanceScore($jobPath, $job) : null;
+        $overall = $pathScore
+            ? (int) round(($baseOverall * 0.85) + ($pathScore['score'] * 0.15))
+            : $baseOverall;
 
         $strengthAreas = $this->buildStrengthAreas($matchedSkills, $profile, $job, $domainScore, $experienceScore);
         $recommendation = $this->recommendation($overall);
@@ -52,6 +57,8 @@ class JobMatchScoringService
             'location_score' => $locationScore,
             'backend_focus_score' => $backendFocusScore,
             'domain_score' => $domainScore,
+            'path_relevance_score' => $pathScore['score'] ?? null,
+            'path_relevance_reasons' => $pathScore['reasons'] ?? [],
             'missing_required_skills' => $missingRequiredSkills,
             'nice_to_have_gaps' => $niceToHaveGaps,
             'strength_areas' => $strengthAreas,
@@ -59,6 +66,86 @@ class JobMatchScoringService
             'recommendation_action' => $recommendationAction,
             'notes' => $this->notes($matchedSkills, $missingRequiredSkills, $niceToHaveGaps, $analysis?->role_type, $analysis?->seniority, $recommendationAction),
         ];
+    }
+
+    /**
+     * @return array{score: int, reasons: array<int, string>}
+     */
+    private function pathRelevanceScore(JobPath $jobPath, Job $job): array
+    {
+        $text = mb_strtolower(implode(' ', array_filter([
+            $job->title,
+            $job->company_name,
+            $job->location,
+            $job->remote_type,
+            $job->employment_type,
+            $job->description_clean,
+            $job->description_raw,
+            $job->analysis?->ai_summary,
+            implode(' ', $job->analysis?->required_skills ?? []),
+            implode(' ', $job->analysis?->preferred_skills ?? []),
+            implode(' ', $job->analysis?->tech_stack ?? []),
+        ])));
+        $score = 0;
+        $reasons = [];
+
+        $roleHits = $this->matchedNeedles($text, $jobPath->target_roles ?? []);
+        if ($roleHits !== []) {
+            $score += min(30, count($roleHits) * 15);
+            $reasons[] = 'Target role alignment: '.implode(', ', array_slice($roleHits, 0, 3));
+        }
+
+        $requiredHits = $this->matchedNeedles($text, $jobPath->required_skills ?? []);
+        if ($requiredHits !== []) {
+            $score += min(30, count($requiredHits) * 8);
+            $reasons[] = 'Required path skills found: '.implode(', ', array_slice($requiredHits, 0, 4));
+        }
+
+        $keywordHits = $this->matchedNeedles($text, $jobPath->include_keywords ?? []);
+        if ($keywordHits !== []) {
+            $score += min(20, count($keywordHits) * 5);
+            $reasons[] = 'Path keywords found: '.implode(', ', array_slice($keywordHits, 0, 4));
+        }
+
+        $domainHits = $this->matchedNeedles($text, $jobPath->target_domains ?? []);
+        if ($domainHits !== []) {
+            $score += min(10, count($domainHits) * 5);
+            $reasons[] = 'Domain alignment: '.implode(', ', array_slice($domainHits, 0, 2));
+        }
+
+        if ($this->remoteMatchesPath($jobPath, $job)) {
+            $score += 10;
+            $reasons[] = 'Workplace preference matches.';
+        }
+
+        return [
+            'score' => max(0, min(100, $score)),
+            'reasons' => $reasons,
+        ];
+    }
+
+    /**
+     * @param array<int, string> $needles
+     * @return array<int, string>
+     */
+    private function matchedNeedles(string $text, array $needles): array
+    {
+        return collect($needles)
+            ->map(fn (string $value): string => trim($value))
+            ->filter(fn (string $value): bool => $value !== '' && str_contains($text, mb_strtolower($value)))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function remoteMatchesPath(JobPath $jobPath, Job $job): bool
+    {
+        return match ($jobPath->remote_preference) {
+            'remote' => (bool) $job->is_remote || $job->remote_type === 'remote',
+            'hybrid' => in_array($job->remote_type, ['hybrid', 'remote'], true),
+            'onsite' => $job->remote_type === 'onsite' || (! $job->is_remote && $job->remote_type === null),
+            default => true,
+        };
     }
 
     /**

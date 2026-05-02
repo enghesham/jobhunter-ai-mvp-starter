@@ -262,7 +262,7 @@ class OnboardingTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.state.current_step', 'done')
             ->assertJsonPath('data.state.is_completed', true)
-            ->assertJsonPath('data.best_matches_path', '/matches');
+            ->assertJsonPath('data.best_matches_path', '/opportunities');
     }
 
     private function profilePayload(): array

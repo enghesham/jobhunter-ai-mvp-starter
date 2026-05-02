@@ -4,6 +4,7 @@ namespace App\Modules\Matching\Domain\Models;
 
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,8 @@ class JobMatch extends Model
         'job_id',
         'user_id',
         'profile_id',
+        'job_path_id',
+        'context_key',
         'overall_score',
         'title_score',
         'skill_score',
@@ -22,6 +25,8 @@ class JobMatch extends Model
         'location_score',
         'backend_focus_score',
         'domain_score',
+        'path_relevance_score',
+        'path_relevance_reasons',
         'notes',
         'why_matched',
         'missing_skills',
@@ -55,6 +60,7 @@ class JobMatch extends Model
         'strength_areas' => 'array',
         'risk_flags' => 'array',
         'resume_focus_points' => 'array',
+        'path_relevance_reasons' => 'array',
     ];
 
     public function profile(): BelongsTo
@@ -65,6 +71,11 @@ class JobMatch extends Model
     public function job(): BelongsTo
     {
         return $this->belongsTo(Job::class);
+    }
+
+    public function jobPath(): BelongsTo
+    {
+        return $this->belongsTo(JobPath::class);
     }
 
     public function user(): BelongsTo
