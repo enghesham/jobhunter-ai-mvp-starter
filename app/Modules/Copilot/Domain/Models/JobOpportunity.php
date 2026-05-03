@@ -3,11 +3,13 @@
 namespace App\Modules\Copilot\Domain\Models;
 
 use App\Models\User;
+use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Matching\Domain\Models\JobMatch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class JobOpportunity extends Model
 {
@@ -61,5 +63,10 @@ class JobOpportunity extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(JobMatch::class, 'match_id');
+    }
+
+    public function applyPackages(): HasMany
+    {
+        return $this->hasMany(ApplyPackage::class, 'job_id', 'job_id');
     }
 }

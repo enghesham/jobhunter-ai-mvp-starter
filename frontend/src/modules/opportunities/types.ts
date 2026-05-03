@@ -19,6 +19,15 @@ export interface JobOpportunity {
   hidden_at?: string | null
   hidden_reason?: string | null
   evaluated_at?: string | null
+  apply_package_id?: number | null
+  apply_package?: {
+    id: number
+    status?: string | null
+    application_id?: number | null
+    resume_id?: number | null
+    created_at?: string | null
+    updated_at?: string | null
+  } | null
   job?: Job | null
   job_path?: Pick<JobPath, 'id' | 'name' | 'min_relevance_score' | 'min_match_score'> | null
   career_profile?: {

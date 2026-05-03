@@ -22,7 +22,14 @@ class OpportunityService
     {
         $query = JobOpportunity::query()
             ->where('user_id', $user->id)
-            ->with(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath']);
+            ->with([
+                'job.source',
+                'jobPath',
+                'careerProfile',
+                'match.profile',
+                'match.jobPath',
+                'applyPackages' => fn ($query) => $query->where('user_id', $user->id),
+            ]);
 
         if (! (bool) ($filters['include_hidden'] ?? false)) {
             $query->whereNotIn('status', ['hidden', 'not_relevant']);
@@ -134,7 +141,7 @@ class OpportunityService
             ])->save();
         }
 
-        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath']);
+        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']);
     }
 
     public function hide(User $user, JobOpportunity $opportunity, ?string $reason = null): JobOpportunity
@@ -149,7 +156,7 @@ class OpportunityService
             'hidden_reason' => $reason,
         ])->save();
 
-        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath']);
+        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']);
     }
 
     public function restore(User $user, JobOpportunity $opportunity): JobOpportunity
@@ -164,7 +171,7 @@ class OpportunityService
             'hidden_reason' => null,
         ])->save();
 
-        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath']);
+        return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']);
     }
 
     /**

@@ -11,6 +11,8 @@ class JobOpportunityResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $applyPackage = $this->applyPackageForOpportunity();
+
         return [
             'id' => $this->id,
             'job_id' => $this->job_id,
@@ -42,8 +44,29 @@ class JobOpportunityResource extends JsonResource
                 'headline' => $this->careerProfile?->headline,
             ]),
             'match' => new JobMatchResource($this->whenLoaded('match')),
+            'apply_package_id' => $applyPackage?->id,
+            'apply_package' => $applyPackage ? [
+                'id' => $applyPackage->id,
+                'status' => $applyPackage->status,
+                'application_id' => $applyPackage->application_id,
+                'resume_id' => $applyPackage->resume_id,
+                'created_at' => $applyPackage->created_at?->toISOString(),
+                'updated_at' => $applyPackage->updated_at?->toISOString(),
+            ] : null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
+    }
+
+    private function applyPackageForOpportunity(): mixed
+    {
+        if (! $this->relationLoaded('applyPackages')) {
+            return null;
+        }
+
+        return $this->applyPackages->first(function ($package): bool {
+            return (int) $package->career_profile_id === (int) $this->career_profile_id
+                && (int) ($package->job_path_id ?? 0) === (int) ($this->job_path_id ?? 0);
+        });
     }
 }

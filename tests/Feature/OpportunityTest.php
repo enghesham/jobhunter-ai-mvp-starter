@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
@@ -129,6 +130,41 @@ class OpportunityTest extends TestCase
         $this->getJson('/api/jobhunter/matches')
             ->assertOk()
             ->assertJsonCount(2, 'data.data');
+    }
+
+    public function test_opportunity_list_marks_existing_apply_package(): void
+    {
+        config()->set('jobhunter.ai_enabled', false);
+
+        [$user, $profile, $path] = $this->seedProfileAndPath();
+        $job = $this->createJob($user, 'Senior Laravel Backend Engineer', 'Senior backend role using PHP, Laravel, REST APIs, Redis, Docker, and AWS.');
+
+        Sanctum::actingAs($user);
+
+        $opportunityId = $this->postJson('/api/jobhunter/opportunities/refresh')
+            ->assertOk()
+            ->json('data.opportunities.0.id');
+
+        $this->postJson("/api/jobhunter/opportunities/{$opportunityId}/evaluate")->assertOk();
+
+        $package = ApplyPackage::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'career_profile_id' => $profile->id,
+            'job_path_id' => $path->id,
+            'cover_letter' => 'Saved package',
+            'application_answers' => [],
+            'strengths' => [],
+            'gaps' => [],
+            'interview_questions' => [],
+            'fallback_used' => true,
+            'status' => 'ready',
+        ]);
+
+        $this->getJson('/api/jobhunter/opportunities')
+            ->assertOk()
+            ->assertJsonPath('data.0.apply_package_id', $package->id)
+            ->assertJsonPath('data.0.apply_package.status', 'ready');
     }
 
     /**

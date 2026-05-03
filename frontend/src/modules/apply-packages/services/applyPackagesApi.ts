@@ -9,6 +9,11 @@ export async function listApplyPackages(): Promise<CollectionResponse<ApplyPacka
   return extractCollection<ApplyPackage>(response.data)
 }
 
+export async function getApplyPackage(id: number): Promise<ApplyPackage> {
+  const response = await api.get(`/jobhunter/apply-packages/${id}`)
+  return extractApiData<ApplyPackage>(response.data)
+}
+
 export async function generateApplyPackage(jobId: number, payload: GenerateApplyPackagePayload = {}): Promise<ApplyPackage> {
   const profileId = payload.profile_id ?? payload.career_profile_id ?? null
   const response = await api.post(`/jobhunter/jobs/${jobId}/apply-package`, {

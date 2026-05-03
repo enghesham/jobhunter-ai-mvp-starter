@@ -137,6 +137,7 @@
             <div class="flex flex-wrap gap-2">
               <Button label="Details" icon="pi pi-eye" size="small" text @click="openDetails(data)" />
               <Button
+                v-if="!isEvaluated(data)"
                 label="Evaluate Fit"
                 icon="pi pi-sparkles"
                 size="small"
@@ -144,14 +145,30 @@
                 :disabled="data.status === 'hidden'"
                 @click="evaluate(data)"
               />
+              <Tag
+                v-else
+                value="Evaluated"
+                severity="info"
+                icon="pi pi-check-circle"
+              />
               <Button
-                v-if="isFitOpportunity(data)"
+                v-if="isFitOpportunity(data) && !hasApplyPackage(data)"
                 label="Create Apply Package"
                 icon="pi pi-file-edit"
                 size="small"
                 severity="success"
                 :loading="generatingPackageOpportunityId === data.id"
                 @click="openPackageOptions(data)"
+              />
+              <Button
+                v-if="hasApplyPackage(data)"
+                label="View Package"
+                icon="pi pi-folder-open"
+                size="small"
+                severity="success"
+                outlined
+                :loading="loadingPackageOpportunityId === data.id"
+                @click="viewPackage(data)"
               />
               <Button
                 v-if="data.status !== 'hidden'"
@@ -213,21 +230,37 @@
             </p>
             <div class="mt-4 flex flex-wrap gap-2">
               <Button
-                v-if="!selectedOpportunity.match_id"
+                v-if="!isEvaluated(selectedOpportunity)"
                 label="Evaluate Fit"
                 icon="pi pi-sparkles"
                 size="small"
                 :loading="evaluatingId === selectedOpportunity.id"
                 @click="evaluate(selectedOpportunity)"
               />
+              <Tag
+                v-else
+                value="Evaluated"
+                severity="info"
+                icon="pi pi-check-circle"
+              />
               <Button
-                v-if="isFitOpportunity(selectedOpportunity)"
+                v-if="isFitOpportunity(selectedOpportunity) && !hasApplyPackage(selectedOpportunity)"
                 label="Create Apply Package"
                 icon="pi pi-file-edit"
                 size="small"
                 severity="success"
                 :loading="generatingPackageOpportunityId === selectedOpportunity.id"
                 @click="openPackageOptions(selectedOpportunity)"
+              />
+              <Button
+                v-if="hasApplyPackage(selectedOpportunity)"
+                label="View Apply Package"
+                icon="pi pi-folder-open"
+                size="small"
+                severity="success"
+                outlined
+                :loading="loadingPackageOpportunityId === selectedOpportunity.id"
+                @click="viewPackage(selectedOpportunity)"
               />
               <RouterLink v-if="selectedOpportunity.match_id" to="/matches">
                 <Button label="Open Best Matches" icon="pi pi-star" size="small" text />
@@ -437,6 +470,7 @@ import {
 import {
   createApplicationFromApplyPackage,
   generateApplyPackage,
+  getApplyPackage,
 } from '@/modules/apply-packages/services/applyPackagesApi'
 import type { ApplyPackage, ApplyPackageAnswer, ApplyPackageSection } from '@/modules/apply-packages/types'
 import type { JobOpportunity } from '@/modules/opportunities/types'
@@ -456,6 +490,7 @@ const loading = ref(false)
 const refreshing = ref(false)
 const evaluatingId = ref<number | null>(null)
 const generatingPackageOpportunityId = ref<number | null>(null)
+const loadingPackageOpportunityId = ref<number | null>(null)
 const creatingApplication = ref(false)
 const downloadingResumeId = ref<number | null>(null)
 const errorMessage = ref('')
@@ -572,6 +607,24 @@ async function evaluate(opportunity: JobOpportunity): Promise<void> {
   }
 }
 
+async function viewPackage(opportunity: JobOpportunity): Promise<void> {
+  if (!opportunity.apply_package_id) {
+    return
+  }
+
+  loadingPackageOpportunityId.value = opportunity.id
+
+  try {
+    selectedApplyPackage.value = await getApplyPackage(opportunity.apply_package_id)
+    selectedOpportunity.value = opportunity
+    applyPackageVisible.value = true
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Package unavailable', detail: getApiErrorMessage(error), life: 5000 })
+  } finally {
+    loadingPackageOpportunityId.value = null
+  }
+}
+
 function openPackageOptions(opportunity: JobOpportunity): void {
   packageOptionsOpportunity.value = opportunity
   selectedPackageSections.value = [
@@ -618,6 +671,20 @@ async function createPackage(opportunity: JobOpportunity, sections: ApplyPackage
 
     selectedOpportunity.value = opportunity
     selectedApplyPackage.value = applyPackage
+    const updatedOpportunity: JobOpportunity = {
+      ...opportunity,
+      apply_package_id: applyPackage.id,
+      apply_package: {
+        id: applyPackage.id,
+        status: applyPackage.status,
+        application_id: applyPackage.application_id ?? null,
+        resume_id: applyPackage.resume_id ?? null,
+        created_at: applyPackage.created_at ?? null,
+        updated_at: applyPackage.updated_at ?? null,
+      },
+    }
+    replaceOpportunity(updatedOpportunity)
+    selectedOpportunity.value = updatedOpportunity
     packageOptionsVisible.value = false
     applyPackageVisible.value = true
 
@@ -648,6 +715,18 @@ async function createApplicationFromPackage(): Promise<void> {
       application_id: application.id,
       application,
       status: 'used',
+    }
+    if (selectedOpportunity.value?.apply_package_id === selectedApplyPackage.value.id) {
+      const updatedOpportunity: JobOpportunity = {
+        ...selectedOpportunity.value,
+        apply_package: {
+          ...(selectedOpportunity.value.apply_package ?? { id: selectedApplyPackage.value.id }),
+          status: 'used',
+          application_id: application.id,
+        },
+      }
+      selectedOpportunity.value = updatedOpportunity
+      replaceOpportunity(updatedOpportunity)
     }
 
     toast.add({
@@ -698,7 +777,7 @@ function replaceOpportunity(updated: JobOpportunity): void {
 }
 
 function isFitOpportunity(opportunity: JobOpportunity): boolean {
-  if (!opportunity.match_id) {
+  if (!isEvaluated(opportunity)) {
     return false
   }
 
@@ -715,6 +794,14 @@ function isFitOpportunity(opportunity: JobOpportunity): boolean {
   return normalizeScore(opportunity.match_score ?? opportunity.match?.overall_score) >= matchThreshold(opportunity)
 }
 
+function isEvaluated(opportunity: JobOpportunity): boolean {
+  return Boolean(opportunity.match_id || opportunity.evaluated_at)
+}
+
+function hasApplyPackage(opportunity: JobOpportunity): boolean {
+  return Boolean(opportunity.apply_package_id || opportunity.apply_package?.id)
+}
+
 function matchThreshold(opportunity: JobOpportunity): number {
   return opportunity.job_path?.min_match_score ?? 75
 }
@@ -728,8 +815,14 @@ function normalizeScore(value?: number | null): number {
 }
 
 function nextActionText(opportunity: JobOpportunity): string {
-  if (!opportunity.match_id) {
+  if (!isEvaluated(opportunity)) {
     return 'Run Evaluate Fit only if this job looks worth deeper AI analysis.'
+  }
+
+  if (hasApplyPackage(opportunity)) {
+    return opportunity.apply_package?.application_id
+      ? 'This opportunity already has an apply package and an application in your tracker.'
+      : 'This opportunity already has an apply package. Open it to copy content, download the resume, or create an application.'
   }
 
   if (isFitOpportunity(opportunity)) {
