@@ -132,6 +132,16 @@
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
               <Button label="View" icon="pi pi-eye" size="small" text @click="openDetailsDialog(data.id)" />
+              <Button
+                v-if="canMarkApplied(data)"
+                label="Mark Applied"
+                icon="pi pi-check-circle"
+                size="small"
+                severity="success"
+                outlined
+                :loading="markAppliedId === data.id"
+                @click="markAsApplied(data)"
+              />
               <Button label="Edit" icon="pi pi-pencil" size="small" severity="secondary" outlined @click="openEditDialog(data.id)" />
               <Button label="Delete" icon="pi pi-trash" size="small" severity="danger" text @click="confirmDelete(data)" />
             </div>
@@ -194,6 +204,16 @@
 
                   <div class="flex flex-wrap gap-2">
                     <Button label="View" icon="pi pi-eye" size="small" text @click="openDetailsDialog(application.id)" />
+                    <Button
+                      v-if="canMarkApplied(application)"
+                      label="Mark Applied"
+                      icon="pi pi-check-circle"
+                      size="small"
+                      severity="success"
+                      outlined
+                      :loading="markAppliedId === application.id"
+                      @click="markAsApplied(application)"
+                    />
                     <Button label="Edit" icon="pi pi-pencil" size="small" severity="secondary" outlined @click="openEditDialog(application.id)" />
                   </div>
                 </div>
@@ -286,11 +306,58 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <StatusTag :value="selectedApplication.status" />
+              <Button
+                v-if="canMarkApplied(selectedApplication)"
+                label="Mark as Applied"
+                icon="pi pi-check-circle"
+                size="small"
+                severity="success"
+                :loading="markAppliedId === selectedApplication.id"
+                @click="markAsApplied(selectedApplication)"
+              />
               <Button label="Log Activity" icon="pi pi-history" size="small" severity="secondary" outlined @click="openEventDialog" />
               <Button label="Update Materials" icon="pi pi-file-edit" size="small" severity="help" outlined :loading="materialsGenerating" @click="openMaterialsOptions(false)" />
               <Button v-if="(selectedApplication.materials?.length || 0) > 0" label="Regenerate" icon="pi pi-refresh" size="small" severity="secondary" outlined :loading="materialsGenerating" @click="openMaterialsOptions(true)" />
             </div>
           </div>
+
+        <div
+          v-if="selectedApplication.status === 'ready_to_apply'"
+          class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4"
+        >
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h4 class="text-lg font-semibold text-emerald-950">Apply manually, then update the tracker</h4>
+              <p class="mt-2 text-sm leading-6 text-emerald-900">
+                Review the package and materials, submit the application on the company's site yourself, then mark it as applied here. The system will not submit anything automatically.
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <StatusTag v-if="selectedApplication.job_path" value="job_path" :label="selectedApplication.job_path.name || 'Job Path'" />
+                <StatusTag v-if="selectedApplication.apply_package_id" value="ready" label="Apply Package linked" />
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <Button
+                v-if="selectedApplication.job?.url"
+                label="Open Job URL"
+                icon="pi pi-external-link"
+                severity="secondary"
+                outlined
+                @click="openUrl(selectedApplication.job.url)"
+              />
+              <RouterLink v-if="selectedApplication.apply_package_id" to="/apply-packages">
+                <Button label="Open Apply Packages" icon="pi pi-file-edit" severity="secondary" outlined />
+              </RouterLink>
+              <Button
+                label="Mark as Applied"
+                icon="pi pi-check-circle"
+                severity="success"
+                :loading="markAppliedId === selectedApplication.id"
+                @click="markAsApplied(selectedApplication)"
+              />
+            </div>
+          </div>
+        </div>
 
         <div class="grid gap-4 md:grid-cols-2">
           <div class="rounded-2xl bg-slate-50 px-4 py-3">
@@ -513,7 +580,7 @@ import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import type { CandidateProfile } from '@/modules/candidate-profile/types'
 import type { Job } from '@/modules/jobs/types'
@@ -626,6 +693,7 @@ const eventDialogVisible = ref(false)
 const editingApplicationId = ref<number | null>(null)
 const statusUpdatingId = ref<number | null>(null)
 const draggingApplicationId = ref<number | null>(null)
+const markAppliedId = ref<number | null>(null)
 const validationErrors = ref<Record<string, string[]>>({})
 const eventValidationErrors = ref<Record<string, string[]>>({})
 
@@ -939,6 +1007,54 @@ async function handleGenerateMaterials(force: boolean): Promise<void> {
   } finally {
     materialsGenerating.value = false
   }
+}
+
+async function markAsApplied(application: Application): Promise<void> {
+  if (!canMarkApplied(application)) {
+    return
+  }
+
+  markAppliedId.value = application.id
+
+  try {
+    await createApplicationEvent(application.id, {
+      type: 'applied_manually',
+      note: 'User confirmed the application was submitted manually outside the system.',
+      metadata: {
+        source: 'manual_confirmation',
+        job_url: application.job?.url ?? null,
+        apply_package_id: application.apply_package_id ?? null,
+        job_path_id: application.job_path_id ?? null,
+      },
+    })
+
+    const updated = await getApplication(application.id)
+    upsertApplication(updated)
+
+    if (selectedApplication.value?.id === application.id) {
+      selectedApplication.value = updated
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Application marked as applied',
+      detail: 'The tracker was updated after your manual submission.',
+      life: 3000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Could not mark as applied',
+      detail: getApiErrorMessage(error, 'Failed to update application status.'),
+      life: 4000,
+    })
+  } finally {
+    markAppliedId.value = null
+  }
+}
+
+function canMarkApplied(application: Application): boolean {
+  return ['draft', 'ready_to_apply'].includes(application.status)
 }
 
 function buildPayload(): ApplicationPayload {

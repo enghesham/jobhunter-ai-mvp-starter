@@ -4,6 +4,7 @@ namespace App\Modules\Applications\Domain\Models;
 
 use App\Models\User;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Resume\Domain\Models\TailoredResume;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,8 @@ class Application extends Model
         'job_id',
         'user_id',
         'profile_id',
+        'job_path_id',
+        'apply_package_id',
         'tailored_resume_id',
         'status',
         'applied_at',
@@ -49,6 +52,16 @@ class Application extends Model
     public function tailoredResume(): BelongsTo
     {
         return $this->belongsTo(TailoredResume::class, 'tailored_resume_id');
+    }
+
+    public function jobPath(): BelongsTo
+    {
+        return $this->belongsTo(JobPath::class);
+    }
+
+    public function applyPackage(): BelongsTo
+    {
+        return $this->belongsTo(ApplyPackage::class);
     }
 
     public function events(): HasMany

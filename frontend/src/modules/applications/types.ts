@@ -65,6 +65,8 @@ export interface Application {
   job_id: number
   profile_id?: number
   candidate_profile_id?: number
+  job_path_id?: number | null
+  apply_package_id?: number | null
   tailored_resume_id?: number | null
   resume_id?: number | null
   status: ApplicationStatus
@@ -77,6 +79,8 @@ export interface Application {
   updated_at?: string | null
   job?: ApplicationJob | null
   candidate_profile?: CandidateProfile | { id: number; full_name?: string | null; headline?: string | null } | null
+  job_path?: { id: number; name?: string | null } | null
+  apply_package?: { id: number; status?: string | null; resume_id?: number | null; created_at?: string | null } | null
   resume?: ApplicationResume | null
   events?: ApplicationEvent[]
   materials?: ApplicationMaterial[]
@@ -95,6 +99,8 @@ export interface ApplicationPayload {
   job_id: number
   profile_id?: number
   candidate_profile_id?: number
+  job_path_id?: number | null
+  apply_package_id?: number | null
   tailored_resume_id?: number | null
   resume_id?: number | null
   status: ApplicationStatus

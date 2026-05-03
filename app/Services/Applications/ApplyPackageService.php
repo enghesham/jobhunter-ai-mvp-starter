@@ -170,6 +170,8 @@ class ApplyPackageService
                 'user_id' => $package->user_id,
                 'job_id' => $package->job_id,
                 'profile_id' => $package->career_profile_id,
+                'job_path_id' => $package->job_path_id,
+                'apply_package_id' => $package->id,
                 'tailored_resume_id' => $package->resume_id,
                 'status' => ApplicationStatus::ReadyToApply->value,
                 'notes' => 'Created from apply package.',

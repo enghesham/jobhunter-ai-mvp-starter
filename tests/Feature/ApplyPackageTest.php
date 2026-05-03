@@ -113,12 +113,19 @@ class ApplyPackageTest extends TestCase
         $applicationId = $this->postJson("/api/jobhunter/apply-packages/{$packageId}/create-application")
             ->assertCreated()
             ->assertJsonPath('data.status', 'ready_to_apply')
+            ->assertJsonPath('data.job_path_id', $path->id)
+            ->assertJsonPath('data.apply_package_id', $packageId)
             ->json('data.id');
 
         $this->assertDatabaseHas('apply_packages', [
             'id' => $packageId,
             'application_id' => $applicationId,
             'status' => 'used',
+        ]);
+        $this->assertDatabaseHas('applications', [
+            'id' => $applicationId,
+            'job_path_id' => $path->id,
+            'apply_package_id' => $packageId,
         ]);
         $this->assertSame(1, ApplicationMaterial::query()->where('application_id', $applicationId)->where('key', 'cover_letter')->count());
     }

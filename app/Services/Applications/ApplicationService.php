@@ -6,7 +6,9 @@ use App\Modules\Applications\Domain\Enums\ApplicationEventType;
 use App\Modules\Applications\Domain\Enums\ApplicationStatus;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Applications\Domain\Models\ApplicationEvent;
+use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Matching\Domain\Models\JobMatch;
 use Illuminate\Support\Carbon;
@@ -58,10 +60,22 @@ class ApplicationService
                 );
             }
 
+            if ($application->apply_package_id) {
+                $this->logEvent(
+                    $application,
+                    ApplicationEventType::NoteAdded,
+                    'Apply package linked to the application tracker.',
+                    [
+                        'apply_package_id' => $application->apply_package_id,
+                        'job_path_id' => $application->job_path_id,
+                    ],
+                );
+            }
+
             return $application;
         });
 
-        return $application->fresh(['job', 'profile', 'tailoredResume', 'events']);
+        return $application->fresh(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume', 'events']);
     }
 
     /**
@@ -72,6 +86,8 @@ class ApplicationService
         $data = $this->validatedPayload($payload + [
             'job_id' => $payload['job_id'] ?? $application->job_id,
             'profile_id' => $payload['profile_id'] ?? $application->profile_id,
+            'job_path_id' => $payload['job_path_id'] ?? $application->job_path_id,
+            'apply_package_id' => $payload['apply_package_id'] ?? $application->apply_package_id,
             'tailored_resume_id' => $payload['tailored_resume_id'] ?? $application->tailored_resume_id,
             'user_id' => $payload['user_id'] ?? $application->user_id,
         ]);
@@ -106,7 +122,7 @@ class ApplicationService
             }
         });
 
-        return $application->fresh(['job', 'profile', 'tailoredResume', 'events']);
+        return $application->fresh(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume', 'events']);
     }
 
     /**
@@ -155,10 +171,41 @@ class ApplicationService
             }
         }
 
+        if (isset($payload['job_path_id']) && $payload['job_path_id'] !== null) {
+            /** @var JobPath $jobPath */
+            $jobPath = JobPath::query()->findOrFail($payload['job_path_id']);
+
+            if ((int) $jobPath->user_id !== (int) $payload['user_id']) {
+                throw ValidationException::withMessages([
+                    'job_path_id' => 'The supplied job path does not belong to the authenticated user.',
+                ]);
+            }
+        }
+
+        if (isset($payload['apply_package_id']) && $payload['apply_package_id'] !== null) {
+            /** @var ApplyPackage $applyPackage */
+            $applyPackage = ApplyPackage::query()->findOrFail($payload['apply_package_id']);
+
+            if (
+                (int) $applyPackage->user_id !== (int) $payload['user_id']
+                || (int) $applyPackage->job_id !== (int) $payload['job_id']
+                || (int) $applyPackage->career_profile_id !== (int) $payload['profile_id']
+            ) {
+                throw ValidationException::withMessages([
+                    'apply_package_id' => 'The supplied apply package does not belong to the given job/profile pair.',
+                ]);
+            }
+
+            $payload['job_path_id'] = $payload['job_path_id'] ?? $applyPackage->job_path_id;
+            $payload['tailored_resume_id'] = $payload['tailored_resume_id'] ?? $applyPackage->resume_id;
+        }
+
         return [
             'job_id' => $payload['job_id'],
             'user_id' => $payload['user_id'],
             'profile_id' => $payload['profile_id'],
+            'job_path_id' => $payload['job_path_id'] ?? null,
+            'apply_package_id' => $payload['apply_package_id'] ?? null,
             'tailored_resume_id' => $payload['tailored_resume_id'] ?? null,
             'status' => $this->normalizeStatus($payload['status'] ?? ApplicationStatus::Draft->value),
             'applied_at' => $payload['applied_at'] ?? null,

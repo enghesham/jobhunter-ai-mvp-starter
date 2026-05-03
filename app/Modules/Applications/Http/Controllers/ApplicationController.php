@@ -22,7 +22,7 @@ class ApplicationController extends Controller
     {
         $applications = Application::query()
             ->where('user_id', auth()->id())
-            ->with(['job', 'profile', 'tailoredResume'])
+            ->with(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume'])
             ->latest()
             ->paginate();
 
@@ -33,13 +33,13 @@ class ApplicationController extends Controller
     {
         $application = $applicationService->create($request->validated() + ['user_id' => auth()->id()]);
 
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume'])), 201);
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume'])), 201);
     }
 
     public function show(Application $application): JsonResponse
     {
         $this->authorize('view', $application);
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events', 'materials'])));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume', 'events', 'materials'])));
     }
 
     public function update(UpdateApplicationRequest $request, Application $application, ApplicationService $applicationService): JsonResponse
@@ -50,7 +50,7 @@ class ApplicationController extends Controller
             $request->validated() + ['user_id' => auth()->id()]
         );
 
-        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'tailoredResume', 'events', 'materials'])));
+        return ApiResponse::success(new ApplicationResource($application->load(['job', 'profile', 'jobPath', 'applyPackage', 'tailoredResume', 'events', 'materials'])));
     }
 
     public function storeEvent(

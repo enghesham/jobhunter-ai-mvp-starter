@@ -14,6 +14,8 @@ class ApplicationResource extends JsonResource
             'job_id' => $this->job_id,
             'profile_id' => $this->profile_id,
             'candidate_profile_id' => $this->profile_id,
+            'job_path_id' => $this->job_path_id,
+            'apply_package_id' => $this->apply_package_id,
             'tailored_resume_id' => $this->tailored_resume_id,
             'resume_id' => $this->tailored_resume_id,
             'status' => $this->status,
@@ -32,6 +34,16 @@ class ApplicationResource extends JsonResource
                 'id' => $this->profile?->id,
                 'full_name' => $this->profile?->full_name,
                 'headline' => $this->profile?->headline,
+            ]),
+            'job_path' => $this->whenLoaded('jobPath', fn () => [
+                'id' => $this->jobPath?->id,
+                'name' => $this->jobPath?->name,
+            ]),
+            'apply_package' => $this->whenLoaded('applyPackage', fn () => [
+                'id' => $this->applyPackage?->id,
+                'status' => $this->applyPackage?->status,
+                'resume_id' => $this->applyPackage?->resume_id,
+                'created_at' => $this->applyPackage?->created_at?->toISOString(),
             ]),
             'resume' => $this->whenLoaded('tailoredResume', fn () => [
                 'id' => $this->tailoredResume?->id,

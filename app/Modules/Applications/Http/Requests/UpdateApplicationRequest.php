@@ -18,6 +18,8 @@ class UpdateApplicationRequest extends FormRequest
         return [
             'job_id' => ['sometimes', 'integer', 'exists:jobs,id'],
             'profile_id' => ['sometimes', 'integer', 'exists:candidate_profiles,id'],
+            'job_path_id' => ['nullable', 'integer', 'exists:job_paths,id'],
+            'apply_package_id' => ['nullable', 'integer', 'exists:apply_packages,id'],
             'tailored_resume_id' => ['nullable', 'integer', 'exists:tailored_resumes,id'],
             'status' => ['sometimes', 'string', Rule::in([...ApplicationStatus::values(), 'interview'])],
             'applied_at' => ['nullable', 'date'],

@@ -18,6 +18,8 @@ class StoreApplicationRequest extends FormRequest
         return [
             'job_id' => ['required', 'integer', 'exists:jobs,id'],
             'profile_id' => ['required', 'integer', 'exists:candidate_profiles,id'],
+            'job_path_id' => ['nullable', 'integer', 'exists:job_paths,id'],
+            'apply_package_id' => ['nullable', 'integer', 'exists:apply_packages,id'],
             'job_match_id' => ['nullable', 'integer', 'exists:job_matches,id'],
             'tailored_resume_id' => ['nullable', 'integer', 'exists:tailored_resumes,id'],
             'status' => ['sometimes', 'string', Rule::in([...ApplicationStatus::values(), 'interview'])],
