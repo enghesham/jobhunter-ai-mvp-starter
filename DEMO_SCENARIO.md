@@ -31,6 +31,8 @@ npm run dev
 The demo user includes:
 
 - 1 active job source: `Demo Curated Backend Roles`
+- 3 active live-safe RSS job sources for collection testing
+- 2 inactive company-board templates for Greenhouse and Lever
 - 1 candidate profile with experiences and projects
 - 4 jobs across different fit levels
 - 4 job analyses
@@ -64,6 +66,8 @@ Expected:
 - `Demo Curated Backend Roles` appears as active
 - source type is `custom`
 - source has seeded metadata
+- RSS sources appear as active and can be used from `/opportunities` with `Collect Jobs`
+- Greenhouse and Lever templates appear inactive until you replace their `base_url`/config with real public board values
 
 ### 3. Jobs
 

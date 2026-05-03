@@ -40,6 +40,17 @@ Demo login:
 
 The seeded scenario includes job sources, jobs, analyses, matches, tailored resumes, applications, timeline events, application materials, answer templates, and AI quality metadata.
 
+`JobSourceSeeder` also adds live-safe collection sources for the demo user:
+
+- active RSS sources for remote/software jobs
+- inactive Greenhouse and Lever templates you can customize and activate
+
+After seeding, you can test collection with:
+
+```bash
+php artisan jobhunter:collect-jobs --user=1 --sync
+```
+
 Full walkthrough:
 
 - `DEMO_SCENARIO.md`

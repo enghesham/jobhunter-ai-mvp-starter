@@ -7,8 +7,10 @@ use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Applications\Domain\Models\ApplicationMaterial;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobAnalysis;
+use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Modules\Matching\Domain\Models\JobMatch;
 use App\Modules\Resume\Domain\Models\TailoredResume;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoScenarioSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -63,5 +65,32 @@ class DemoScenarioSeederTest extends TestCase
         $this->getJson('/api/jobhunter/ai-quality')
             ->assertOk()
             ->assertJsonPath('data.summary.total_runs', 13);
+    }
+
+    public function test_database_seeder_adds_live_safe_job_sources_for_collection(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('email', DemoScenarioSeeder::DEMO_EMAIL)->firstOrFail();
+
+        $this->assertGreaterThanOrEqual(3, JobSource::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'rss')
+            ->where('is_active', true)
+            ->count());
+
+        $this->assertDatabaseHas('job_sources', [
+            'user_id' => $user->id,
+            'name' => 'Greenhouse Template',
+            'type' => 'greenhouse',
+            'is_active' => false,
+        ]);
+
+        $this->assertDatabaseHas('job_sources', [
+            'user_id' => $user->id,
+            'name' => 'Lever Template',
+            'type' => 'lever',
+            'is_active' => false,
+        ]);
     }
 }
