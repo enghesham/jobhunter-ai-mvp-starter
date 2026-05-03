@@ -7,6 +7,7 @@ use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
+use App\Modules\Matching\Domain\Models\JobMatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -80,6 +81,54 @@ class OpportunityTest extends TestCase
             ->assertJsonPath('data.match.fallback_used', true);
 
         $this->assertGreaterThanOrEqual(70, $response->json('data.match_score'));
+    }
+
+    public function test_best_matches_endpoint_only_returns_matches_above_threshold(): void
+    {
+        [$user, $profile, $path] = $this->seedProfileAndPath();
+        $path->forceFill(['min_match_score' => 80])->save();
+
+        $strongJob = $this->createJob($user, 'Senior Laravel Platform Engineer', 'Laravel, PHP, Redis, PostgreSQL, AWS, and queues.');
+        $weakJob = $this->createJob($user, 'Junior PHP Support Developer', 'Basic PHP support with limited Laravel ownership.');
+
+        JobMatch::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $strongJob->id,
+            'profile_id' => $profile->id,
+            'job_path_id' => $path->id,
+            'context_key' => "path:{$path->id}",
+            'overall_score' => 88,
+            'title_score' => 90,
+            'skill_score' => 88,
+            'recommendation' => 'Strong fit',
+            'recommendation_action' => 'apply',
+            'matched_at' => now(),
+        ]);
+
+        JobMatch::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $weakJob->id,
+            'profile_id' => $profile->id,
+            'job_path_id' => $path->id,
+            'context_key' => "path:{$path->id}",
+            'overall_score' => 62,
+            'title_score' => 55,
+            'skill_score' => 60,
+            'recommendation' => 'Weak fit',
+            'recommendation_action' => 'consider',
+            'matched_at' => now()->subMinute(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/jobhunter/matches?best_only=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.job.title', 'Senior Laravel Platform Engineer');
+
+        $this->getJson('/api/jobhunter/matches')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.data');
     }
 
     /**

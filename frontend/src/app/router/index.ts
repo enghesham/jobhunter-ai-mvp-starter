@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
 const ApplicationsPage = () => import('@/modules/applications/pages/ApplicationsPage.vue')
+const ApplyPackagesPage = () => import('@/modules/apply-packages/pages/ApplyPackagesPage.vue')
 const CandidateProfilePage = () => import('@/modules/candidate-profile/pages/CandidateProfilePage.vue')
 const DashboardPage = () => import('@/modules/dashboard/pages/DashboardPage.vue')
 const AiQualityPage = () => import('@/modules/developer/pages/AiQualityPage.vue')
@@ -34,7 +35,8 @@ const router = createRouter({
         { path: 'opportunities', component: OpportunitiesPage, meta: { title: 'Opportunities' } },
         { path: 'jobs', component: JobsPage, meta: { title: 'Jobs' } },
         { path: 'candidate-profile', component: CandidateProfilePage, meta: { title: 'Candidate Profile' } },
-        { path: 'matches', component: MatchesPage, meta: { title: 'Matches' } },
+        { path: 'matches', component: MatchesPage, meta: { title: 'Best Matches' } },
+        { path: 'apply-packages', component: ApplyPackagesPage, meta: { title: 'Apply Packages' } },
         { path: 'resumes', component: ResumesPage, meta: { title: 'Resumes' } },
         { path: 'applications', component: ApplicationsPage, meta: { title: 'Applications' } },
         { path: 'settings', component: SettingsPage, meta: { title: 'Settings' } },

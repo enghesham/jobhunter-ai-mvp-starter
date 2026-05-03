@@ -1,10 +1,16 @@
 <template>
   <div class="space-y-6">
     <PageHeader
-      eyebrow="Scoring"
-      title="Matches"
-      description="Review persisted match results created from the Jobs page, including score breakdowns and recommendation notes."
-    />
+      eyebrow="Copilot"
+      title="Best Matches"
+      description="A focused shortlist of evaluated jobs that passed your match threshold. Use history mode when you need to inspect every evaluation."
+    >
+      <template #actions>
+        <RouterLink to="/opportunities">
+          <Button label="Review Opportunities" icon="pi pi-sparkles" severity="secondary" />
+        </RouterLink>
+      </template>
+    </PageHeader>
 
     <ErrorState v-if="errorMessage" title="Matches unavailable" :message="errorMessage">
       <template #actions>
@@ -22,19 +28,32 @@
         </IconField>
 
         <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Showing {{ filteredMatches.length }} of {{ totalMatches }} matches
+          Showing {{ filteredMatches.length }} of {{ totalMatches }} {{ showHistory ? 'evaluations' : 'best matches' }}
         </div>
+
+        <label class="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <Checkbox v-model="showHistory" binary @change="loadMatches" />
+          Show evaluation history
+        </label>
+      </div>
+
+      <div v-if="!showHistory" class="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+        Best Matches only includes evaluated jobs with score above the Job Path threshold, or the global match threshold when no Job Path is attached.
+      </div>
+
+      <div v-else class="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+        History mode shows all evaluated matches, including consider and skip decisions.
       </div>
 
       <EmptyState
         v-if="filteredMatches.length === 0"
-        title="No persisted matches yet"
-        description="Run Match from the Jobs page and the results will appear here automatically."
+        :title="showHistory ? 'No evaluation history yet' : 'No best matches yet'"
+        :description="showHistory ? 'Evaluate opportunities and every saved result will appear here.' : 'Evaluate promising opportunities first. Jobs that pass your threshold will appear here automatically.'"
         icon="pi-star"
       >
         <template #actions>
-          <RouterLink to="/jobs">
-            <Button label="Go to Jobs" icon="pi pi-briefcase" />
+          <RouterLink to="/opportunities">
+            <Button label="Go to Opportunities" icon="pi pi-sparkles" />
           </RouterLink>
         </template>
       </EmptyState>
@@ -260,6 +279,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
@@ -290,6 +310,7 @@ const matches = ref<JobMatch[]>([])
 const totalMatches = ref(0)
 const detailsDialogVisible = ref(false)
 const selectedMatch = ref<JobMatch | null>(null)
+const showHistory = ref(false)
 
 const filteredMatches = computed(() => {
   const search = debouncedQuery.value.trim().toLowerCase()
@@ -332,7 +353,7 @@ async function loadMatches(): Promise<void> {
   errorMessage.value = ''
 
   try {
-    const collection = await listMatches()
+    const collection = await listMatches({ bestOnly: !showHistory.value })
     matches.value = collection.items
     totalMatches.value = getCollectionTotal(collection)
   } catch (error) {

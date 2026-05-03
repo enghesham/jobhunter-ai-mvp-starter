@@ -120,7 +120,8 @@ const navSections = [
       { label: 'Job Sources', to: '/job-sources', icon: 'pi-database' },
       { label: 'Jobs', to: '/jobs', icon: 'pi-briefcase' },
       { label: 'Best Matches', to: '/matches', icon: 'pi-star' },
-      { label: 'Apply Package', to: '/resumes', icon: 'pi-file-edit' },
+      { label: 'Apply Packages', to: '/apply-packages', icon: 'pi-file-edit' },
+      { label: 'Resumes', to: '/resumes', icon: 'pi-file' },
     ],
   },
   {

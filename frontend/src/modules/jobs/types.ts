@@ -39,6 +39,8 @@ export interface JobMatch {
   job_id?: number
   profile_id?: number
   candidate_profile_id?: number
+  job_path_id?: number | null
+  context_key?: string | null
   overall_score?: number | null
   title_score?: number | null
   skill_score?: number | null
@@ -71,6 +73,11 @@ export interface JobMatch {
     title?: string | null
     company_name?: string | null
     url?: string | null
+  } | null
+  job_path?: {
+    id?: number
+    name?: string | null
+    min_match_score?: number | null
   } | null
   candidate_profile?: {
     id?: number

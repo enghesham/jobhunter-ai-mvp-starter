@@ -59,6 +59,7 @@ class JobMatchResource extends JsonResource
             'job_path' => $this->whenLoaded('jobPath', fn () => [
                 'id' => $this->jobPath?->id,
                 'name' => $this->jobPath?->name,
+                'min_match_score' => $this->jobPath?->min_match_score,
             ]),
             'matched_at' => $this->matched_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
