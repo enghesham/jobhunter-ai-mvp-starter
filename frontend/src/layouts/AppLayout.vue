@@ -44,7 +44,21 @@
               @click="mobileSidebarOpen = false"
             >
               <i :class="['pi text-base', item.icon]" />
-              <span v-if="!sidebarCollapsed">{{ item.label }}</span>
+              <span v-if="!sidebarCollapsed" class="min-w-0 flex-1">
+                <span class="flex items-center gap-2">
+                  <span class="truncate">{{ item.label }}</span>
+                  <span
+                    v-if="item.badge"
+                    :class="[
+                      'rounded-full px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.14em]',
+                      badgeClass(item.badgeTone),
+                    ]"
+                  >
+                    {{ item.badge }}
+                  </span>
+                </span>
+                <span v-if="item.help" class="mt-0.5 block truncate text-xs text-slate-500">{{ item.help }}</span>
+              </span>
             </RouterLink>
           </div>
         </section>
@@ -117,11 +131,11 @@ const navSections = [
   {
     label: 'Job Management',
     items: [
-      { label: 'Job Sources', to: '/job-sources', icon: 'pi-database' },
-      { label: 'Jobs', to: '/jobs', icon: 'pi-briefcase' },
+      { label: 'Job Sources', to: '/job-sources', icon: 'pi-database', badge: 'Setup', badgeTone: 'slate', help: 'Only when collecting/importing jobs' },
+      { label: 'Raw Jobs', to: '/jobs', icon: 'pi-briefcase', badge: 'Legacy', badgeTone: 'amber', help: 'Replaced by Opportunities flow' },
       { label: 'Best Matches', to: '/matches', icon: 'pi-star' },
       { label: 'Apply Packages', to: '/apply-packages', icon: 'pi-file-edit' },
-      { label: 'Resumes', to: '/resumes', icon: 'pi-file' },
+      { label: 'Resumes', to: '/resumes', icon: 'pi-file', badge: 'Optional', badgeTone: 'slate', help: 'Artifacts are shown in packages' },
     ],
   },
   {
@@ -138,7 +152,7 @@ const navSections = [
   },
   {
     label: 'Developer',
-    items: [{ label: 'AI Quality', to: '/developer/ai-quality', icon: 'pi-chart-line' }],
+    items: [{ label: 'AI Quality', to: '/developer/ai-quality', icon: 'pi-chart-line', badge: 'Dev', badgeTone: 'sky', help: 'Diagnostics only' }],
   },
 ]
 
@@ -183,6 +197,17 @@ async function handleLogout(): Promise<void> {
 
 function isActiveRoute(target: string): boolean {
   return route.path === target || route.path.startsWith(`${target}/`)
+}
+
+function badgeClass(tone?: string): string {
+  switch (tone) {
+    case 'amber':
+      return 'bg-amber-400/15 text-amber-200 ring-1 ring-amber-300/25'
+    case 'sky':
+      return 'bg-sky-400/15 text-sky-200 ring-1 ring-sky-300/25'
+    default:
+      return 'bg-slate-700 text-slate-300 ring-1 ring-slate-600'
+  }
 }
 
 function toggleUserMenu(event: Event): void {
