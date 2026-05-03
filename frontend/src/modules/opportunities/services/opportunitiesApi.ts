@@ -1,7 +1,7 @@
 import api from '@/app/services/api'
 import { extractApiData, extractCollection } from '@/shared/utils/api'
 import type { CollectionResponse } from '@/shared/types'
-import type { JobOpportunity, OpportunityRefreshResponse } from '@/modules/opportunities/types'
+import type { JobCollectionResponse, JobOpportunity, OpportunityRefreshResponse } from '@/modules/opportunities/types'
 
 export interface OpportunityFilters {
   jobPathId?: number | null
@@ -27,6 +27,15 @@ export async function refreshOpportunities(jobPathId?: number | null): Promise<O
   })
 
   return extractApiData<OpportunityRefreshResponse>(response.data)
+}
+
+export async function collectJobsForActivePaths(sync = true): Promise<JobCollectionResponse> {
+  const response = await api.post('/jobhunter/job-collection/collect-due', {
+    sync,
+    all_active: true,
+  })
+
+  return extractApiData<JobCollectionResponse>(response.data)
 }
 
 export async function evaluateOpportunity(id: number, force = false): Promise<JobOpportunity> {

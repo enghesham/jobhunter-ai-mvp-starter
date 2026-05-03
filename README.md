@@ -402,6 +402,43 @@ Supported environment variables include:
 - `JOBHUNTER_PYTHON_AI_SERVICE_URL`
 - `JOBHUNTER_PYTHON_AI_SERVICE_KEY`
 
+## Job Collection
+
+The production-safe collection flow is Job Path first:
+
+1. Active Job Path
+2. Fetch jobs from enabled safe sources
+3. Normalize the external payload
+4. Apply cheap Job Path relevance filtering
+5. Deduplicate using existing job hashes/fingerprints
+6. Create Opportunities for the user to evaluate manually
+
+This flow does not run AI analysis or matching automatically by default. AI-heavy evaluation still happens only when the user chooses `Evaluate Fit`.
+
+Safe source types:
+
+- `rss`
+- `greenhouse`
+- `lever`
+
+Avoid aggressive scraping, anti-bot bypassing, private-data collection, and auto-submitting applications. For LinkedIn and Indeed, prefer manual URL import, a browser extension, or an external provider that is legally and technically acceptable.
+
+Collection environment:
+
+```env
+JOBHUNTER_ALLOWED_SOURCES=custom,rss,greenhouse,lever
+JOBHUNTER_COLLECTION_SAFE_SOURCE_TYPES=rss,greenhouse,lever
+JOBHUNTER_COLLECTION_FETCH_TIMEOUT=20
+JOBHUNTER_COLLECTION_STORE_BELOW_THRESHOLD=false
+JOBHUNTER_COLLECTION_SCHEDULE_EVERY_MINUTES=15
+```
+
+Collection APIs:
+
+- `POST /api/jobhunter/job-paths/{jobPath}/collect`
+- `POST /api/jobhunter/job-collection/collect-due`
+- `GET /api/jobhunter/job-collection/runs`
+
 ## Useful Artisan Commands
 
 ### Scanning
@@ -411,6 +448,9 @@ php artisan jobs:scan
 php artisan jobs:scan 1 --sync
 php artisan jobhunter:scan-sources
 php artisan jobhunter:scan-sources --sync
+php artisan jobhunter:collect-jobs
+php artisan jobhunter:collect-jobs --sync
+php artisan jobhunter:collect-jobs --path=1 --sync
 ```
 
 ### Analysis and Matching
@@ -451,6 +491,7 @@ php artisan queue:work --queue=default --tries=3 --timeout=120
 The scheduler runs:
 
 - `jobhunter:scan-sources` every `JOBHUNTER_SCAN_HOURS`
+- `jobhunter:collect-jobs` every `JOBHUNTER_COLLECTION_SCHEDULE_EVERY_MINUTES`
 
 Production cron:
 

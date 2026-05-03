@@ -1,4 +1,4 @@
-export type JobSourceType = 'custom' | 'greenhouse' | 'lever' | (string & {})
+export type JobSourceType = 'custom' | 'rss' | 'greenhouse' | 'lever' | (string & {})
 
 export interface JobSource {
   id: number

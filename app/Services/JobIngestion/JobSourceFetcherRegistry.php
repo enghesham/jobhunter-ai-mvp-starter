@@ -6,6 +6,7 @@ use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Services\JobIngestion\Contracts\JobSourceFetcherInterface;
 use App\Services\JobIngestion\Fetchers\GreenhouseJobSourceFetcher;
 use App\Services\JobIngestion\Fetchers\LeverJobSourceFetcher;
+use App\Services\JobIngestion\Fetchers\RssJobSourceFetcher;
 use RuntimeException;
 
 class JobSourceFetcherRegistry
@@ -18,6 +19,7 @@ class JobSourceFetcherRegistry
         $this->fetchers = [
             app(GreenhouseJobSourceFetcher::class),
             app(LeverJobSourceFetcher::class),
+            app(RssJobSourceFetcher::class),
         ];
     }
 

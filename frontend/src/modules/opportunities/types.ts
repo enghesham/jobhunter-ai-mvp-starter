@@ -49,3 +49,28 @@ export interface OpportunityRefreshResponse {
   }
   opportunities: JobOpportunity[]
 }
+
+export interface JobCollectionRun {
+  id: number
+  job_path_id?: number | null
+  status: string
+  source_count: number
+  fetched_count: number
+  accepted_count: number
+  created_count: number
+  updated_count: number
+  duplicate_count: number
+  filtered_count: number
+  failed_count: number
+  opportunities_created: number
+  opportunities_updated: number
+  error_message?: string | null
+  started_at?: string | null
+  finished_at?: string | null
+}
+
+export interface JobCollectionResponse {
+  queued: number
+  processed: number
+  runs?: JobCollectionRun[]
+}

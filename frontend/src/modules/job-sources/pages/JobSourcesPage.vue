@@ -38,7 +38,7 @@
       <EmptyState
         v-if="filteredSources.length === 0"
         title="No job sources yet"
-        description="Create a source first, then manually ingest jobs or connect future ingestion workflows."
+        description="Create an RSS, Greenhouse, or Lever source first. Opportunities can then collect and pre-screen jobs from active sources."
         icon="pi-database"
       >
         <template #actions>
@@ -129,6 +129,7 @@
         <div class="space-y-2">
           <label class="text-sm font-medium text-slate-700" for="source-url">URL</label>
           <InputText id="source-url" v-model.trim="sourceForm.url" fluid />
+          <p class="text-xs text-slate-500">{{ sourceUrlHelp }}</p>
           <FormError :message="fieldError('url')" />
         </div>
 
@@ -355,6 +356,7 @@ const ingestionRows = ref<IngestionRowState[]>([createIngestionRow()])
 
 const sourceTypeOptions = [
   { label: 'Custom', value: 'custom' },
+  { label: 'RSS Feed', value: 'rss' },
   { label: 'Greenhouse', value: 'greenhouse' },
   { label: 'Lever', value: 'lever' },
 ]
@@ -373,6 +375,21 @@ const jobStatusOptions = [
 ]
 
 const dialogTitle = computed(() => (editingSourceId.value ? 'Edit Job Source' : 'Create Job Source'))
+const sourceUrlHelp = computed(() => {
+  if (sourceForm.type === 'rss') {
+    return 'Use a public RSS/Atom feed URL. The collector reads titles, links, descriptions, and publish dates.'
+  }
+
+  if (sourceForm.type === 'greenhouse') {
+    return 'Use a Greenhouse board URL or board token URL. Example: https://boards.greenhouse.io/company.'
+  }
+
+  if (sourceForm.type === 'lever') {
+    return 'Use a Lever postings URL. Example: https://jobs.lever.co/company.'
+  }
+
+  return 'Use any URL for manual ingestion sources.'
+})
 
 const filteredSources = computed(() => {
   const query = debouncedSourceQuery.value.trim().toLowerCase()
@@ -692,6 +709,10 @@ function formatDateTime(value?: string | null): string {
 }
 
 function typeSeverity(type: string): 'contrast' | 'info' | 'success' | 'warn' {
+  if (type === 'rss') {
+    return 'contrast'
+  }
+
   if (type === 'greenhouse') {
     return 'success'
   }

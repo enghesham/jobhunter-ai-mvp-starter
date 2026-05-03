@@ -6,6 +6,7 @@
       description="Review jobs pre-screened by your Job Paths. Run AI evaluation only on the opportunities you care about."
     >
       <template #actions>
+        <Button label="Collect Jobs" icon="pi pi-cloud-download" severity="secondary" :loading="collecting" @click="collectJobs" />
         <Button label="Refresh Opportunities" icon="pi pi-refresh" :loading="refreshing" @click="refreshList" />
       </template>
     </PageHeader>
@@ -71,8 +72,9 @@
         <template #actions>
           <div class="flex flex-wrap justify-center gap-3">
             <Button label="Refresh Opportunities" icon="pi pi-refresh" :loading="refreshing" @click="refreshList" />
+            <Button label="Collect Jobs" icon="pi pi-cloud-download" severity="secondary" :loading="collecting" @click="collectJobs" />
             <RouterLink to="/job-sources">
-              <Button label="Collect Jobs" icon="pi pi-database" severity="secondary" />
+              <Button label="Manage Sources" icon="pi pi-database" severity="secondary" outlined />
             </RouterLink>
           </div>
         </template>
@@ -461,6 +463,7 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 
 import {
+  collectJobsForActivePaths,
   evaluateOpportunity,
   hideOpportunity,
   listOpportunities,
@@ -488,6 +491,7 @@ const toast = useToast()
 const router = useRouter()
 const loading = ref(false)
 const refreshing = ref(false)
+const collecting = ref(false)
 const evaluatingId = ref<number | null>(null)
 const generatingPackageOpportunityId = ref<number | null>(null)
 const loadingPackageOpportunityId = ref<number | null>(null)
@@ -589,6 +593,36 @@ async function refreshList(): Promise<void> {
     toast.add({ severity: 'error', summary: 'Refresh failed', detail: getApiErrorMessage(error), life: 5000 })
   } finally {
     refreshing.value = false
+  }
+}
+
+async function collectJobs(): Promise<void> {
+  collecting.value = true
+
+  try {
+    const response = await collectJobsForActivePaths(true)
+    const totals = (response.runs || []).reduce(
+      (carry, run) => ({
+        fetched: carry.fetched + run.fetched_count,
+        accepted: carry.accepted + run.accepted_count,
+        filtered: carry.filtered + run.filtered_count,
+        failed: carry.failed + run.failed_count,
+      }),
+      { fetched: 0, accepted: 0, filtered: 0, failed: 0 },
+    )
+
+    toast.add({
+      severity: totals.failed > 0 ? 'warn' : 'success',
+      summary: 'Job collection finished',
+      detail: `${response.processed} paths processed. ${totals.accepted}/${totals.fetched} jobs accepted, ${totals.filtered} filtered out.`,
+      life: 5000,
+    })
+
+    await refreshList()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Collection failed', detail: getApiErrorMessage(error), life: 5000 })
+  } finally {
+    collecting.value = false
   }
 }
 

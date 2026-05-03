@@ -10,11 +10,16 @@ use App\Modules\Copilot\Domain\Models\JobOpportunity;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Matching\Domain\Models\JobMatch;
+use App\Services\JobCollection\JobPathRelevanceScorer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 
 class OpportunityService
 {
+    public function __construct(private readonly JobPathRelevanceScorer $relevanceScorer)
+    {
+    }
+
     /**
      * @return Collection<int, JobOpportunity>
      */
@@ -236,66 +241,7 @@ class OpportunityService
      */
     private function quickScore(Job $job, ?JobPath $path, ?CandidateProfile $profile): array
     {
-        $text = $this->jobText($job);
-        $score = 0;
-        $reasons = [];
-        $matched = [];
-        $missing = [];
-        $excludeKeywords = $this->stringList($path?->exclude_keywords ?? ['translation', 'sales', 'cold calling']);
-        $excluded = $this->matchedTerms($text, $excludeKeywords);
-
-        if ($excluded !== []) {
-            return [
-                'score' => 0,
-                'reasons' => ['Excluded by path keywords: '.implode(', ', $excluded)],
-                'matched_keywords' => [],
-                'missing_keywords' => $excluded,
-            ];
-        }
-
-        $targetRoles = $this->stringList($path?->target_roles ?? $profile?->preferred_roles ?? [$profile?->primary_role, $profile?->headline]);
-        $roleHits = $this->matchedTerms($text, $targetRoles);
-        if ($roleHits !== []) {
-            $score += min(30, count($roleHits) * 15);
-            $matched = [...$matched, ...$roleHits];
-            $reasons[] = 'Role match: '.implode(', ', array_slice($roleHits, 0, 3));
-        }
-
-        $requiredSkills = $this->stringList($path?->required_skills ?? $profile?->core_skills ?? []);
-        $requiredHits = $this->matchedTerms($text, $requiredSkills);
-        if ($requiredHits !== []) {
-            $score += min(30, count($requiredHits) * 8);
-            $matched = [...$matched, ...$requiredHits];
-            $reasons[] = 'Required skills found: '.implode(', ', array_slice($requiredHits, 0, 4));
-        }
-
-        $keywordHits = $this->matchedTerms($text, $this->stringList($path?->include_keywords ?? []));
-        if ($keywordHits !== []) {
-            $score += min(20, count($keywordHits) * 5);
-            $matched = [...$matched, ...$keywordHits];
-            $reasons[] = 'Path keywords found: '.implode(', ', array_slice($keywordHits, 0, 4));
-        }
-
-        $optionalHits = $this->matchedTerms($text, $this->stringList($path?->optional_skills ?? $profile?->nice_to_have_skills ?? []));
-        if ($optionalHits !== []) {
-            $score += min(10, count($optionalHits) * 4);
-            $matched = [...$matched, ...$optionalHits];
-            $reasons[] = 'Optional strengths found: '.implode(', ', array_slice($optionalHits, 0, 3));
-        }
-
-        if ($this->locationMatches($job, $path, $profile)) {
-            $score += 10;
-            $reasons[] = 'Location or workplace preference matches.';
-        }
-
-        $missing = array_values(array_diff($requiredSkills, $requiredHits));
-
-        return [
-            'score' => max(0, min(100, $score)),
-            'reasons' => $reasons === [] ? ['Basic metadata matched but no strong path signal was found.'] : array_values(array_unique($reasons)),
-            'matched_keywords' => array_values(array_unique($matched)),
-            'missing_keywords' => array_slice(array_values($missing), 0, 8),
-        ];
+        return $this->relevanceScorer->score($job, $path, $profile);
     }
 
     private function primaryProfile(User $user): ?CandidateProfile

@@ -4,12 +4,15 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Jobs\AnalyzeJobJob;
+use App\Jobs\CollectJobsForPathJob;
 use App\Jobs\MatchJobToProfileJob;
 use App\Jobs\ScanJobSourceJob;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Services\AI\AiHealthInspector;
+use App\Services\JobCollection\JobPathCollectionService;
 use App\Services\JobIngestion\JobSourceScanService;
 
 Artisan::command('inspire', function () {
@@ -130,6 +133,56 @@ Artisan::command('jobhunter:match-pending', function () {
     return self::SUCCESS;
 })->purpose('Match analyzed jobs that do not have a match yet');
 
+Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync}', function () {
+    $query = JobPath::query()
+        ->where('is_active', true)
+        ->with('user');
+
+    if ($this->option('path')) {
+        $query->whereKey((int) $this->option('path'));
+    } else {
+        $query->where('auto_collect_enabled', true)
+            ->where(function ($query): void {
+                $query->whereNull('next_scan_at')
+                    ->orWhere('next_scan_at', '<=', now());
+            });
+    }
+
+    if ($this->option('user')) {
+        $query->where('user_id', (int) $this->option('user'));
+    }
+
+    $paths = $query->get();
+
+    if ($paths->isEmpty()) {
+        $this->warn('No due active Job Paths found.');
+
+        return self::SUCCESS;
+    }
+
+    foreach ($paths as $path) {
+        if ($this->option('sync')) {
+            $run = app(JobPathCollectionService::class)->collect($path);
+            $this->info("Collected jobs for [{$path->name}]: ".json_encode([
+                'run_id' => $run->id,
+                'status' => $run->status,
+                'fetched' => $run->fetched_count,
+                'accepted' => $run->accepted_count,
+                'created' => $run->created_count,
+                'updated' => $run->updated_count,
+                'filtered' => $run->filtered_count,
+            ]));
+
+            continue;
+        }
+
+        CollectJobsForPathJob::dispatch($path->id);
+        $this->info("Queued job collection for [{$path->name}].");
+    }
+
+    return self::SUCCESS;
+})->purpose('Collect jobs for due active Job Paths from safe public sources');
+
 Artisan::command('jobhunter:ai-health {--json}', function () {
     $report = app(AiHealthInspector::class)->inspect();
 
@@ -165,4 +218,8 @@ Artisan::command('jobhunter:ai-health {--json}', function () {
 
 Schedule::command('jobhunter:scan-sources')
     ->cron('0 */'.max(1, (int) config('jobhunter.scan_hours', 6)).' * * *')
+    ->withoutOverlapping();
+
+Schedule::command('jobhunter:collect-jobs')
+    ->cron('*/'.max(1, (int) config('jobhunter.collection.schedule_every_minutes', 15)).' * * * *')
     ->withoutOverlapping();

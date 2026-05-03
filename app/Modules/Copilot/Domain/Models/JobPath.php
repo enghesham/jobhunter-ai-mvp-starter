@@ -99,4 +99,9 @@ class JobPath extends Model
     {
         return $this->hasMany(JobOpportunity::class);
     }
+
+    public function collectionRuns(): HasMany
+    {
+        return $this->hasMany(JobCollectionRun::class);
+    }
 }

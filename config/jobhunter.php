@@ -18,7 +18,13 @@ return [
         'auto_ai_evaluation_enabled' => filter_var(env('JOBHUNTER_OPPORTUNITY_AUTO_AI_EVALUATION_ENABLED', false), FILTER_VALIDATE_BOOL),
         'max_ai_evaluations_per_refresh' => (int) env('JOBHUNTER_OPPORTUNITY_MAX_AI_EVALUATIONS_PER_REFRESH', 0),
     ],
-    'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,greenhouse,lever'))))),
+    'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_ALLOWED_SOURCES', 'custom,rss,greenhouse,lever'))))),
+    'collection' => [
+        'safe_source_types' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_COLLECTION_SAFE_SOURCE_TYPES', 'rss,greenhouse,lever'))))),
+        'fetch_timeout' => (int) env('JOBHUNTER_COLLECTION_FETCH_TIMEOUT', 20),
+        'store_below_threshold' => filter_var(env('JOBHUNTER_COLLECTION_STORE_BELOW_THRESHOLD', false), FILTER_VALIDATE_BOOL),
+        'schedule_every_minutes' => (int) env('JOBHUNTER_COLLECTION_SCHEDULE_EVERY_MINUTES', 15),
+    ],
     'pdf_driver' => env('JOBHUNTER_PDF_DRIVER', 'html'),
     'pdf' => [
         'browser_path' => env('JOBHUNTER_PDF_BROWSER_PATH'),

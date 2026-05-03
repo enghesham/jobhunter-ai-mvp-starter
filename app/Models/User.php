@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobCollectionRun;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Copilot\Domain\Models\UserOnboardingState;
 use App\Modules\Jobs\Domain\Models\Job;
@@ -74,6 +75,11 @@ class User extends Authenticatable
     public function jobPaths(): HasMany
     {
         return $this->hasMany(JobPath::class);
+    }
+
+    public function jobCollectionRuns(): HasMany
+    {
+        return $this->hasMany(JobCollectionRun::class);
     }
 
     public function onboardingState(): HasOne
