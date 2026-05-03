@@ -287,8 +287,8 @@
             <div class="flex flex-wrap gap-2">
               <StatusTag :value="selectedApplication.status" />
               <Button label="Log Activity" icon="pi pi-history" size="small" severity="secondary" outlined @click="openEventDialog" />
-              <Button label="Generate Content Pack" icon="pi pi-file-edit" size="small" severity="help" outlined :loading="materialsGenerating" @click="handleGenerateMaterials(false)" />
-              <Button v-if="(selectedApplication.materials?.length || 0) > 0" label="Regenerate" icon="pi pi-refresh" size="small" severity="secondary" outlined :loading="materialsGenerating" @click="handleGenerateMaterials(true)" />
+              <Button label="Update Materials" icon="pi pi-file-edit" size="small" severity="help" outlined :loading="materialsGenerating" @click="openMaterialsOptions(false)" />
+              <Button v-if="(selectedApplication.materials?.length || 0) > 0" label="Regenerate" icon="pi pi-refresh" size="small" severity="secondary" outlined :loading="materialsGenerating" @click="openMaterialsOptions(true)" />
             </div>
           </div>
 
@@ -384,8 +384,11 @@
 
         <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <div class="mb-4 flex items-center justify-between gap-3">
-            <h4 class="text-lg font-semibold text-slate-900">Application Content Pack</h4>
-            <Button label="Generate Pack" icon="pi pi-sparkles" size="small" text :loading="materialsGenerating" @click="handleGenerateMaterials(false)" />
+            <div>
+              <h4 class="text-lg font-semibold text-slate-900">Application Materials</h4>
+              <p class="mt-1 text-sm text-slate-500">Use this to update selected answers from Settings templates. Apply Packages remain the primary pre-application flow.</p>
+            </div>
+            <Button label="Update Selected" icon="pi pi-sparkles" size="small" text :loading="materialsGenerating" @click="openMaterialsOptions(false)" />
           </div>
 
           <div v-if="(selectedApplication.materials?.length || 0) === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm text-slate-500">
@@ -450,12 +453,54 @@
         </div>
       </form>
     </Dialog>
+
+    <Dialog v-model:visible="materialsOptionsVisible" modal header="Update Application Materials" :style="{ width: '42rem' }">
+      <div class="space-y-5">
+        <div>
+          <h3 class="text-xl font-semibold text-slate-900">{{ selectedApplication?.job?.title || 'Application materials' }}</h3>
+          <p class="mt-1 text-sm text-slate-500">
+            Select only the content you need. These materials are generated from your Settings answer templates when available.
+          </p>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label
+            v-for="option in materialSectionOptions"
+            :key="option.value"
+            class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-sky-300 hover:bg-sky-50"
+          >
+            <Checkbox v-model="selectedMaterialSections" :value="option.value" />
+            <span>
+              <span class="block font-medium text-slate-900">{{ option.label }}</span>
+              <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.description }}</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          If this application was created from an Apply Package, those package materials are already copied here. Use this only to update or regenerate selected items.
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <Button label="Cancel" severity="secondary" text @click="materialsOptionsVisible = false" />
+          <Button
+            label="Update Selected"
+            icon="pi pi-sparkles"
+            severity="help"
+            :disabled="selectedMaterialSections.length === 0"
+            :loading="materialsGenerating"
+            @click="handleGenerateMaterials(materialsForceRegenerate)"
+          />
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
@@ -545,6 +590,25 @@ const saving = ref(false)
 const detailsLoading = ref(false)
 const eventSaving = ref(false)
 const materialsGenerating = ref(false)
+const materialsOptionsVisible = ref(false)
+const materialsForceRegenerate = ref(false)
+const selectedMaterialSections = ref<string[]>([
+  'cover_letter',
+  'why_interested',
+  'about_me',
+  'salary_expectation',
+  'notice_period',
+  'work_authorization',
+])
+
+const materialSectionOptions = [
+  { value: 'cover_letter', label: 'Cover letter', description: 'Template-backed cover letter for this application.' },
+  { value: 'why_interested', label: 'Why interested', description: 'Answer for role/company motivation.' },
+  { value: 'about_me', label: 'Tell us about yourself', description: 'Short profile answer.' },
+  { value: 'salary_expectation', label: 'Salary expectation', description: 'Compensation form answer.' },
+  { value: 'notice_period', label: 'Notice period', description: 'Availability timing answer.' },
+  { value: 'work_authorization', label: 'Work authorization', description: 'Location/work eligibility answer.' },
+]
 const pageError = ref('')
 const formError = ref('')
 const eventFormError = ref('')
@@ -834,6 +898,19 @@ async function submitEvent(): Promise<void> {
   }
 }
 
+function openMaterialsOptions(force: boolean): void {
+  materialsForceRegenerate.value = force
+  selectedMaterialSections.value = [
+    'cover_letter',
+    'why_interested',
+    'about_me',
+    'salary_expectation',
+    'notice_period',
+    'work_authorization',
+  ]
+  materialsOptionsVisible.value = true
+}
+
 async function handleGenerateMaterials(force: boolean): Promise<void> {
   if (!selectedApplication.value) {
     return
@@ -842,13 +919,14 @@ async function handleGenerateMaterials(force: boolean): Promise<void> {
   materialsGenerating.value = true
 
   try {
-    await generateApplicationMaterials(selectedApplication.value.id, force)
+    await generateApplicationMaterials(selectedApplication.value.id, force, selectedMaterialSections.value)
     selectedApplication.value = await getApplication(selectedApplication.value.id)
     upsertApplication(selectedApplication.value)
+    materialsOptionsVisible.value = false
     toast.add({
       severity: 'success',
-      summary: force ? 'Content pack regenerated' : 'Content pack generated',
-      detail: 'Cover letter and reusable application answers are ready.',
+      summary: force ? 'Materials regenerated' : 'Materials updated',
+      detail: 'Selected application materials are ready.',
       life: 3000,
     })
   } catch (error) {

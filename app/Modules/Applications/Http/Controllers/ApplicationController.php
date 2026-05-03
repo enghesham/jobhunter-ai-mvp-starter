@@ -84,7 +84,8 @@ class ApplicationController extends Controller
 
         $materials = $generationService->generate(
             $application,
-            (bool) $request->boolean('force')
+            (bool) $request->boolean('force'),
+            $request->input('sections', []),
         );
 
         return ApiResponse::success(ApplicationMaterialResource::collection($materials), 201);

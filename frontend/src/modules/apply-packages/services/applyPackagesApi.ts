@@ -15,6 +15,7 @@ export async function generateApplyPackage(jobId: number, payload: GenerateApply
     career_profile_id: profileId,
     profile_id: profileId,
     job_path_id: payload.job_path_id ?? null,
+    sections: payload.sections ?? undefined,
     force: payload.force ?? false,
   })
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Answers\Domain\Models\AnswerTemplate;
 use App\Modules\Applications\Domain\Models\ApplicationMaterial;
 use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
@@ -135,6 +136,48 @@ class ApplyPackageTest extends TestCase
             ->assertJsonPath('data.fallback_used', true)
             ->assertJsonPath('data.ai_provider', null)
             ->assertJsonPath('data.status', 'ready');
+    }
+
+    public function test_user_can_generate_only_selected_apply_package_sections(): void
+    {
+        [$user, , $path, $job] = $this->seedScenario();
+        $this->fakeAiProvider([
+            'cover_letter' => 'Only the selected cover letter was generated.',
+            'confidence_score' => 77,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/jobhunter/jobs/{$job->id}/apply-package", [
+            'job_path_id' => $path->id,
+            'sections' => ['cover_letter'],
+        ])->assertCreated()
+            ->assertJsonPath('data.cover_letter', 'Only the selected cover letter was generated.')
+            ->assertJsonPath('data.resume_id', null)
+            ->assertJsonPath('data.application_answers', [])
+            ->assertJsonPath('data.fallback_used', false);
+    }
+
+    public function test_apply_package_fallback_uses_answer_templates(): void
+    {
+        [$user, , $path, $job] = $this->seedScenario();
+        AnswerTemplate::query()->create([
+            'user_id' => $user->id,
+            'key' => 'cover_letter',
+            'title' => 'Cover Letter',
+            'base_answer' => 'Template letter for {{ job_title }} at {{ company_name }} by {{ full_name }}.',
+            'tags' => [],
+        ]);
+        $this->fakeAiProvider(exception: new AiProviderException('provider failed'));
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/jobhunter/jobs/{$job->id}/apply-package", [
+            'job_path_id' => $path->id,
+            'sections' => ['cover_letter'],
+        ])->assertCreated()
+            ->assertJsonPath('data.cover_letter', 'Template letter for Senior Laravel Backend Engineer at Example Co by Hesham Hasanat.')
+            ->assertJsonPath('data.metadata.answer_template_keys.0', 'cover_letter');
     }
 
     /**

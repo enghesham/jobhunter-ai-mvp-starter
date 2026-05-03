@@ -2,6 +2,7 @@
 
 namespace App\Services\Applications;
 
+use App\Modules\Answers\Domain\Models\AnswerTemplate;
 use App\Modules\Applications\Domain\Enums\ApplicationStatus;
 use App\Modules\Applications\Domain\Models\Application;
 use App\Modules\Applications\Domain\Models\ApplicationMaterial;
@@ -21,6 +22,18 @@ use Throwable;
 
 class ApplyPackageService
 {
+    private const DEFAULT_SECTIONS = [
+        'tailored_resume',
+        'cover_letter',
+        'application_answers',
+        'salary_answer',
+        'notice_period_answer',
+        'interest_answer',
+        'strengths_gaps',
+        'interview_questions',
+        'follow_up_email',
+    ];
+
     public function __construct(
         private readonly ResumeGenerationService $resumeGenerationService,
         private readonly ApplicationService $applicationService,
@@ -39,9 +52,14 @@ class ApplyPackageService
         $jobPath = $resolved['job_path'];
         $match = $resolved['match'];
         $force = (bool) ($payload['force'] ?? false);
+        $sections = $this->sectionsFromPayload($payload);
+        $existing = $this->existingPackage($job, $profile, $jobPath);
 
-        $resume = $this->resumeGenerationService->generate($job, $profile, 'apply-package', $force);
-        $context = $this->context($job, $profile, $jobPath, $match, $resume);
+        $resume = in_array('tailored_resume', $sections, true)
+            ? $this->resumeGenerationService->generate($job, $profile, 'apply-package', $force)
+            : $existing?->resume;
+
+        $context = $this->context($job, $profile, $jobPath, $match, $resume, $sections);
         $promptVersion = $this->prompt->version();
         $inputHash = hash('sha256', json_encode($context, JSON_UNESCAPED_SLASHES).$promptVersion);
 
@@ -50,11 +68,15 @@ class ApplyPackageService
         }
 
         $startedAt = microtime(true);
-        $fallback = $this->fallbackPackage($context);
+        $baseContent = $this->contentFromExisting($existing);
+        $fallback = $this->filterContentForSections($this->fallbackPackage($context), $sections);
+        $generatedContent = $fallback;
         $content = $fallback;
         $metadata = [
             'source' => 'fallback',
             'match_id' => $match?->id,
+            'selected_sections' => $sections,
+            'answer_template_keys' => collect($context['answer_templates'] ?? [])->pluck('key')->values()->all(),
         ];
         $aiProvider = null;
         $aiModel = null;
@@ -70,8 +92,8 @@ class ApplyPackageService
                 $this->prompt->build($profile, $job, $context),
             );
 
-            if ($response !== null && ($validated = $this->validateAiPayload($response)) !== null) {
-                $content = $validated;
+            if ($response !== null && ($validated = $this->validateAiPayload($response, $sections)) !== null) {
+                $generatedContent = array_replace($generatedContent, $validated);
                 $metadata = array_merge($metadata, [
                     'source' => 'ai',
                     'raw_response' => (app()->isLocal() || config('app.debug')) ? ($response['_raw_response'] ?? null) : null,
@@ -92,6 +114,8 @@ class ApplyPackageService
             ]);
         }
 
+        $content = $this->mergeSelectedContent($baseContent, $generatedContent, $sections);
+
         return ApplyPackage::query()->updateOrCreate(
             [
                 'job_id' => $job->id,
@@ -100,7 +124,7 @@ class ApplyPackageService
             ],
             [
                 'user_id' => $userId,
-                'resume_id' => $resume->id,
+                'resume_id' => $resume?->id ?? $existing?->resume_id,
                 'cover_letter' => $content['cover_letter'],
                 'application_answers' => $content['application_answers'],
                 'salary_answer' => $content['salary_answer'],
@@ -231,6 +255,16 @@ class ApplyPackageService
     /**
      * @return array<string, mixed>|null
      */
+    private function existingPackage(Job $job, CandidateProfile $profile, ?JobPath $jobPath): ?ApplyPackage
+    {
+        return ApplyPackage::query()
+            ->where('job_id', $job->id)
+            ->where('career_profile_id', $profile->id)
+            ->where('job_path_id', $jobPath?->id)
+            ->with(['job', 'careerProfile', 'jobPath', 'resume', 'application'])
+            ->first();
+    }
+
     private function cachedPackage(Job $job, CandidateProfile $profile, ?JobPath $jobPath, string $promptVersion, string $inputHash): ?ApplyPackage
     {
         return ApplyPackage::query()
@@ -246,12 +280,13 @@ class ApplyPackageService
     /**
      * @return array<string, mixed>
      */
-    private function context(Job $job, CandidateProfile $profile, ?JobPath $jobPath, ?JobMatch $match, mixed $resume): array
+    private function context(Job $job, CandidateProfile $profile, ?JobPath $jobPath, ?JobMatch $match, mixed $resume, array $sections): array
     {
         $job->loadMissing('analysis');
         $profile->loadMissing(['experiences', 'projects']);
 
         return [
+            'selected_sections' => $sections,
             'candidate_profile' => [
                 'full_name' => $profile->full_name,
                 'headline' => $profile->headline,
@@ -297,7 +332,139 @@ class ApplyPackageService
                 'skills' => $resume?->selected_skills ?? [],
                 'warnings_or_gaps' => $resume?->warnings_or_gaps ?? [],
             ],
+            'answer_templates' => $this->answerTemplates($profile->user_id),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<int, string>
+     */
+    private function sectionsFromPayload(array $payload): array
+    {
+        $sections = $payload['sections'] ?? self::DEFAULT_SECTIONS;
+
+        if (! is_array($sections) || $sections === []) {
+            return self::DEFAULT_SECTIONS;
+        }
+
+        return collect($sections)
+            ->map(fn (mixed $section): string => trim((string) $section))
+            ->filter(fn (string $section): bool => in_array($section, self::DEFAULT_SECTIONS, true))
+            ->unique()
+            ->values()
+            ->all() ?: self::DEFAULT_SECTIONS;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function contentFromExisting(?ApplyPackage $package): array
+    {
+        return [
+            'cover_letter' => $package?->cover_letter,
+            'application_answers' => $package?->application_answers ?? [],
+            'salary_answer' => $package?->salary_answer,
+            'notice_period_answer' => $package?->notice_period_answer,
+            'interest_answer' => $package?->interest_answer,
+            'strengths' => $package?->strengths ?? [],
+            'gaps' => $package?->gaps ?? [],
+            'interview_questions' => $package?->interview_questions ?? [],
+            'follow_up_email' => $package?->follow_up_email,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $base
+     * @param array<string, mixed> $generated
+     * @param array<int, string> $sections
+     * @return array<string, mixed>
+     */
+    private function mergeSelectedContent(array $base, array $generated, array $sections): array
+    {
+        $content = $base;
+
+        foreach ($this->fieldsForSections($sections) as $field) {
+            $content[$field] = $generated[$field] ?? $this->emptyValueForField($field);
+        }
+
+        return [
+            'cover_letter' => $content['cover_letter'] ?? null,
+            'application_answers' => $content['application_answers'] ?? [],
+            'salary_answer' => $content['salary_answer'] ?? null,
+            'notice_period_answer' => $content['notice_period_answer'] ?? null,
+            'interest_answer' => $content['interest_answer'] ?? null,
+            'strengths' => $content['strengths'] ?? [],
+            'gaps' => $content['gaps'] ?? [],
+            'interview_questions' => $content['interview_questions'] ?? [],
+            'follow_up_email' => $content['follow_up_email'] ?? null,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $content
+     * @param array<int, string> $sections
+     * @return array<string, mixed>
+     */
+    private function filterContentForSections(array $content, array $sections): array
+    {
+        $filtered = [];
+
+        foreach ($this->fieldsForSections($sections) as $field) {
+            $filtered[$field] = $content[$field] ?? $this->emptyValueForField($field);
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * @param array<int, string> $sections
+     * @return array<int, string>
+     */
+    private function fieldsForSections(array $sections): array
+    {
+        $fields = [];
+
+        foreach ($sections as $section) {
+            $fields = [
+                ...$fields,
+                ...match ($section) {
+                    'cover_letter' => ['cover_letter'],
+                    'application_answers' => ['application_answers'],
+                    'salary_answer' => ['salary_answer'],
+                    'notice_period_answer' => ['notice_period_answer'],
+                    'interest_answer' => ['interest_answer'],
+                    'strengths_gaps' => ['strengths', 'gaps'],
+                    'interview_questions' => ['interview_questions'],
+                    'follow_up_email' => ['follow_up_email'],
+                    default => [],
+                },
+            ];
+        }
+
+        return array_values(array_unique($fields));
+    }
+
+    private function emptyValueForField(string $field): mixed
+    {
+        return in_array($field, ['application_answers', 'strengths', 'gaps', 'interview_questions'], true) ? [] : null;
+    }
+
+    /**
+     * @return array<int, array{key: string, title: string, base_answer: string}>
+     */
+    private function answerTemplates(int $userId): array
+    {
+        return AnswerTemplate::query()
+            ->where('user_id', $userId)
+            ->get(['key', 'title', 'base_answer'])
+            ->map(fn (AnswerTemplate $template): array => [
+                'key' => $template->key,
+                'title' => $template->title,
+                'base_answer' => Str::limit($template->base_answer, 1200, ''),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -310,6 +477,7 @@ class ApplyPackageService
         $job = $context['job'];
         $match = $context['match'] ?? [];
         $resume = $context['resume'] ?? [];
+        $templateContext = $this->templateContext($context);
         $company = $job['company_name'] ?: 'your company';
         $title = $job['title'] ?: 'the role';
         $name = $candidate['full_name'] ?: 'Candidate';
@@ -322,26 +490,33 @@ class ApplyPackageService
             ...($match['missing_required_skills'] ?? []),
             ...($resume['warnings_or_gaps'] ?? []),
         ])));
+        $coverLetter = $this->renderTemplateByKey($context, 'cover_letter', $templateContext);
+        $whyInterested = $this->renderTemplateByKey($context, 'why_interested', $templateContext);
+        $aboutMe = $this->renderTemplateByKey($context, 'about_me', $templateContext);
+        $salaryAnswer = $this->renderTemplateByKey($context, 'salary_expectation', $templateContext);
+        $noticePeriod = $this->renderTemplateByKey($context, 'notice_period', $templateContext);
+        $workAuthorization = $this->renderTemplateByKey($context, 'work_authorization', $templateContext);
+        $followUp = $this->renderTemplateByKey($context, 'follow_up_email', $templateContext);
 
         return [
-            'cover_letter' => trim("Dear Hiring Team,\n\nI am interested in the {$title} role at {$company}. My background as a {$headline} aligns with the responsibilities of this role, especially around ".($strengths === [] ? 'relevant delivery and problem solving' : implode(', ', array_slice($strengths, 0, 4))).".\n\nI would welcome the chance to discuss how my experience can support your team.\n\nBest regards,\n{$name}"),
+            'cover_letter' => $coverLetter ?: trim("Dear Hiring Team,\n\nI am interested in the {$title} role at {$company}. My background as a {$headline} aligns with the responsibilities of this role, especially around ".($strengths === [] ? 'relevant delivery and problem solving' : implode(', ', array_slice($strengths, 0, 4))).".\n\nI would welcome the chance to discuss how my experience can support your team.\n\nBest regards,\n{$name}"),
             'application_answers' => [
                 [
                     'key' => 'about_me',
                     'question' => 'Tell us about yourself.',
-                    'answer' => "I am {$name}, {$headline}. My work has focused on ".($candidate['summary'] ?: 'building reliable products and systems').'.',
+                    'answer' => $aboutMe ?: "I am {$name}, {$headline}. My work has focused on ".($candidate['summary'] ?: 'building reliable products and systems').'.',
                 ],
                 [
                     'key' => 'work_authorization',
                     'question' => 'What is your work authorization status?',
-                    'answer' => 'I can clarify my current work authorization status and any location-specific requirements during the application process.',
+                    'answer' => $workAuthorization ?: 'I can clarify my current work authorization status and any location-specific requirements during the application process.',
                 ],
             ],
-            'salary_answer' => $candidate['salary_expectation']
+            'salary_answer' => $salaryAnswer ?: ($candidate['salary_expectation']
                 ? sprintf('My expected compensation is around %s %s, depending on the full scope, benefits, and work arrangement.', $candidate['salary_expectation'], $candidate['salary_currency'] ?: '')
-                : 'I am open to discussing a compensation package aligned with the responsibilities, scope, and market range for this role.',
-            'notice_period_answer' => 'My notice period can be confirmed based on final offer timing and current commitments.',
-            'interest_answer' => "I am interested in {$company} because this {$title} role aligns with my background and the kind of work I want to keep building.",
+                : 'I am open to discussing a compensation package aligned with the responsibilities, scope, and market range for this role.'),
+            'notice_period_answer' => $noticePeriod ?: 'My notice period can be confirmed based on final offer timing and current commitments.',
+            'interest_answer' => $whyInterested ?: "I am interested in {$company} because this {$title} role aligns with my background and the kind of work I want to keep building.",
             'strengths' => $strengths,
             'gaps' => $gaps,
             'interview_questions' => [
@@ -350,34 +525,116 @@ class ApplyPackageService
                 'What are the main technical or business challenges this role will own?',
                 'How is the team structured and how does this role collaborate with others?',
             ],
-            'follow_up_email' => "Subject: Follow-up on {$title} application\n\nDear Hiring Team,\n\nI wanted to follow up on my application for the {$title} role at {$company}. I remain interested in the opportunity and would be glad to share any additional information that helps with the review process.\n\nBest regards,\n{$name}",
+            'follow_up_email' => $followUp ?: "Subject: Follow-up on {$title} application\n\nDear Hiring Team,\n\nI wanted to follow up on my application for the {$title} role at {$company}. I remain interested in the opportunity and would be glad to share any additional information that helps with the review process.\n\nBest regards,\n{$name}",
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    private function templateContext(array $context): array
+    {
+        $candidate = $context['candidate_profile'] ?? [];
+        $job = $context['job'] ?? [];
+        $match = $context['match'] ?? [];
+
+        return [
+            'full_name' => $candidate['full_name'] ?? '',
+            'headline' => $candidate['headline'] ?? '',
+            'base_summary' => $candidate['summary'] ?? '',
+            'years_experience' => $candidate['years_experience'] ?? '',
+            'job_title' => $job['title'] ?? '',
+            'company_name' => $job['company_name'] ?? '',
+            'job_location' => $job['location'] ?? '',
+            'role_type' => $job['analysis']['role_type'] ?? '',
+            'required_skills' => implode(', ', $job['analysis']['required_skills'] ?? []),
+            'preferred_skills' => implode(', ', $job['analysis']['preferred_skills'] ?? []),
+            'strength_areas' => implode(', ', $match['strength_areas'] ?? []),
+            'missing_required_skills' => implode(', ', $match['missing_required_skills'] ?? []),
+            'recommendation' => $match['recommendation_action'] ?? $match['recommendation'] ?? '',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $templateContext
+     */
+    private function renderTemplateByKey(array $context, string $key, array $templateContext): ?string
+    {
+        $template = collect($context['answer_templates'] ?? [])->firstWhere('key', $key);
+
+        if (! is_array($template) || empty($template['base_answer'])) {
+            return null;
+        }
+
+        $rendered = (string) preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function (array $matches) use ($templateContext): string {
+            $value = $templateContext[$matches[1]] ?? '';
+
+            if (is_scalar($value) || $value === null) {
+                return (string) $value;
+            }
+
+            return '';
+        }, (string) $template['base_answer']);
+
+        return trim($rendered) !== '' ? trim($rendered) : null;
     }
 
     /**
      * @param array<string, mixed> $payload
      * @return array<string, mixed>|null
      */
-    private function validateAiPayload(array $payload): ?array
+    private function validateAiPayload(array $payload, array $sections): ?array
     {
-        $coverLetter = $this->stringValue($payload['cover_letter'] ?? null);
-        $interest = $this->stringValue($payload['interest_answer'] ?? null);
+        $validated = [];
 
-        if ($coverLetter === null || $interest === null) {
+        if (in_array('cover_letter', $sections, true)) {
+            $validated['cover_letter'] = $this->stringValue($payload['cover_letter'] ?? null);
+        }
+
+        if (in_array('application_answers', $sections, true)) {
+            $validated['application_answers'] = $this->answers($payload['application_answers'] ?? []);
+        }
+
+        if (in_array('salary_answer', $sections, true)) {
+            $validated['salary_answer'] = $this->stringValue($payload['salary_answer'] ?? null);
+        }
+
+        if (in_array('notice_period_answer', $sections, true)) {
+            $validated['notice_period_answer'] = $this->stringValue($payload['notice_period_answer'] ?? null);
+        }
+
+        if (in_array('interest_answer', $sections, true)) {
+            $validated['interest_answer'] = $this->stringValue($payload['interest_answer'] ?? null);
+        }
+
+        if (in_array('strengths_gaps', $sections, true)) {
+            $validated['strengths'] = $this->stringList($payload['strengths'] ?? []);
+            $validated['gaps'] = $this->stringList($payload['gaps'] ?? []);
+        }
+
+        if (in_array('interview_questions', $sections, true)) {
+            $validated['interview_questions'] = $this->stringList($payload['interview_questions'] ?? []);
+        }
+
+        if (in_array('follow_up_email', $sections, true)) {
+            $validated['follow_up_email'] = $this->stringValue($payload['follow_up_email'] ?? null);
+        }
+
+        $validated = array_filter($validated, function (mixed $value): bool {
+            if (is_array($value)) {
+                return $value !== [];
+            }
+
+            return $value !== null && $value !== '';
+        });
+
+        if ($validated === []) {
             return null;
         }
 
-        return [
-            'cover_letter' => $coverLetter,
-            'application_answers' => $this->answers($payload['application_answers'] ?? []),
-            'salary_answer' => $this->stringValue($payload['salary_answer'] ?? null) ?? '',
-            'notice_period_answer' => $this->stringValue($payload['notice_period_answer'] ?? null) ?? '',
-            'interest_answer' => $interest,
-            'strengths' => $this->stringList($payload['strengths'] ?? []),
-            'gaps' => $this->stringList($payload['gaps'] ?? []),
-            'interview_questions' => $this->stringList($payload['interview_questions'] ?? []),
-            'follow_up_email' => $this->stringValue($payload['follow_up_email'] ?? null) ?? '',
-        ];
+        return $validated;
     }
 
     private function syncApplicationMaterials(ApplyPackage $package, Application $application): void
@@ -401,6 +658,10 @@ class ApplyPackageService
         }
 
         foreach ($materials as $material) {
+            if (trim((string) ($material['content_text'] ?? '')) === '') {
+                continue;
+            }
+
             ApplicationMaterial::query()->updateOrCreate(
                 ['application_id' => $application->id, 'key' => $material['key']],
                 [

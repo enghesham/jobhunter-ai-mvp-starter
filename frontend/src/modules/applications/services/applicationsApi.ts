@@ -43,9 +43,10 @@ export async function listApplicationMaterials(id: number): Promise<ApplicationM
   return extractApiData<ApplicationMaterial[]>(response.data)
 }
 
-export async function generateApplicationMaterials(id: number, force = false): Promise<ApplicationMaterial[]> {
+export async function generateApplicationMaterials(id: number, force = false, sections: string[] = []): Promise<ApplicationMaterial[]> {
   const response = await api.post(`/jobhunter/applications/${id}/generate-materials`, {
     force,
+    sections: sections.length > 0 ? sections : undefined,
   })
 
   return extractApiData<ApplicationMaterial[]>(response.data)

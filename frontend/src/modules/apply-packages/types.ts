@@ -3,6 +3,16 @@ import type { Job, TailoredResume } from '@/modules/jobs/types'
 import type { JobPath } from '@/modules/job-paths/types'
 
 export type ApplyPackageStatus = 'draft' | 'ready' | 'used' | 'archived'
+export type ApplyPackageSection =
+  | 'tailored_resume'
+  | 'cover_letter'
+  | 'application_answers'
+  | 'salary_answer'
+  | 'notice_period_answer'
+  | 'interest_answer'
+  | 'strengths_gaps'
+  | 'interview_questions'
+  | 'follow_up_email'
 
 export interface ApplyPackageAnswer {
   key?: string | null
@@ -55,5 +65,6 @@ export interface GenerateApplyPackagePayload {
   career_profile_id?: number | null
   profile_id?: number | null
   job_path_id?: number | null
+  sections?: ApplyPackageSection[]
   force?: boolean
 }

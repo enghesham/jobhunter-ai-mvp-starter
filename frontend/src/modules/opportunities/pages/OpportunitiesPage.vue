@@ -151,7 +151,7 @@
                 size="small"
                 severity="success"
                 :loading="generatingPackageOpportunityId === data.id"
-                @click="createPackage(data)"
+                @click="openPackageOptions(data)"
               />
               <Button
                 v-if="data.status !== 'hidden'"
@@ -227,7 +227,7 @@
                 size="small"
                 severity="success"
                 :loading="generatingPackageOpportunityId === selectedOpportunity.id"
-                @click="createPackage(selectedOpportunity)"
+                @click="openPackageOptions(selectedOpportunity)"
               />
               <RouterLink v-if="selectedOpportunity.match_id" to="/matches">
                 <Button label="Open Best Matches" icon="pi pi-star" size="small" text />
@@ -244,6 +244,45 @@
         <div class="rounded-3xl border border-slate-200 bg-white p-4">
           <h4 class="font-semibold text-slate-900">Description</h4>
           <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ selectedOpportunity.job?.description_clean || selectedOpportunity.job?.description_raw || 'No description available.' }}</p>
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog v-model:visible="packageOptionsVisible" modal header="Create Apply Package" :style="{ width: '42rem' }">
+      <div class="space-y-5">
+        <div>
+          <h3 class="text-xl font-semibold text-slate-900">{{ packageOptionsOpportunity?.job?.title || 'Selected opportunity' }}</h3>
+          <p class="mt-1 text-sm text-slate-500">Choose only what you need now. Fewer sections means less AI context and faster generation.</p>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label
+            v-for="option in packageSectionOptions"
+            :key="option.value"
+            class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:bg-emerald-50"
+          >
+            <Checkbox v-model="selectedPackageSections" :value="option.value" />
+            <span>
+              <span class="block font-medium text-slate-900">{{ option.label }}</span>
+              <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.description }}</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+          The package will reuse your answer templates from Settings where available, then adapt content to this job and profile.
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <Button label="Cancel" severity="secondary" text @click="packageOptionsVisible = false" />
+          <Button
+            label="Generate Selected"
+            icon="pi pi-sparkles"
+            severity="success"
+            :disabled="selectedPackageSections.length === 0 || !packageOptionsOpportunity"
+            :loading="Boolean(packageOptionsOpportunity && generatingPackageOpportunityId === packageOptionsOpportunity.id)"
+            @click="confirmCreatePackage"
+          />
         </div>
       </div>
     </Dialog>
@@ -399,7 +438,7 @@ import {
   createApplicationFromApplyPackage,
   generateApplyPackage,
 } from '@/modules/apply-packages/services/applyPackagesApi'
-import type { ApplyPackage, ApplyPackageAnswer } from '@/modules/apply-packages/types'
+import type { ApplyPackage, ApplyPackageAnswer, ApplyPackageSection } from '@/modules/apply-packages/types'
 import type { JobOpportunity } from '@/modules/opportunities/types'
 import { downloadResumePdf } from '@/modules/resumes/services/resumesApi'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -430,6 +469,31 @@ const selectedOpportunity = ref<JobOpportunity | null>(null)
 const selectedApplyPackage = ref<ApplyPackage | null>(null)
 const detailsVisible = ref(false)
 const applyPackageVisible = ref(false)
+const packageOptionsVisible = ref(false)
+const packageOptionsOpportunity = ref<JobOpportunity | null>(null)
+const selectedPackageSections = ref<ApplyPackageSection[]>([
+  'tailored_resume',
+  'cover_letter',
+  'application_answers',
+  'salary_answer',
+  'notice_period_answer',
+  'interest_answer',
+  'strengths_gaps',
+  'interview_questions',
+  'follow_up_email',
+])
+
+const packageSectionOptions: Array<{ value: ApplyPackageSection; label: string; description: string }> = [
+  { value: 'tailored_resume', label: 'Tailored resume', description: 'Generate or reuse the tailored CV/PDF for this role.' },
+  { value: 'cover_letter', label: 'Cover letter', description: 'A job-specific letter based on your facts.' },
+  { value: 'application_answers', label: 'Short answers', description: 'Reusable answers from your templates.' },
+  { value: 'salary_answer', label: 'Salary answer', description: 'Compensation response for forms.' },
+  { value: 'notice_period_answer', label: 'Notice period', description: 'A clean answer for availability timing.' },
+  { value: 'interest_answer', label: 'Why interested', description: 'Why this role/company fits you.' },
+  { value: 'strengths_gaps', label: 'Strengths and gaps', description: 'What to highlight and what to be careful about.' },
+  { value: 'interview_questions', label: 'Interview prep', description: 'Questions to ask or prepare for.' },
+  { value: 'follow_up_email', label: 'Follow-up email', description: 'A post-application follow-up template.' },
+]
 
 const evaluatedCount = computed(() => opportunities.value.filter((opportunity) => opportunity.match_id).length)
 const pendingCount = computed(() => opportunities.value.filter((opportunity) => !opportunity.match_id).length)
@@ -508,7 +572,31 @@ async function evaluate(opportunity: JobOpportunity): Promise<void> {
   }
 }
 
-async function createPackage(opportunity: JobOpportunity): Promise<void> {
+function openPackageOptions(opportunity: JobOpportunity): void {
+  packageOptionsOpportunity.value = opportunity
+  selectedPackageSections.value = [
+    'tailored_resume',
+    'cover_letter',
+    'application_answers',
+    'salary_answer',
+    'notice_period_answer',
+    'interest_answer',
+    'strengths_gaps',
+    'interview_questions',
+    'follow_up_email',
+  ]
+  packageOptionsVisible.value = true
+}
+
+async function confirmCreatePackage(): Promise<void> {
+  if (!packageOptionsOpportunity.value) {
+    return
+  }
+
+  await createPackage(packageOptionsOpportunity.value, selectedPackageSections.value)
+}
+
+async function createPackage(opportunity: JobOpportunity, sections: ApplyPackageSection[]): Promise<void> {
   if (!isFitOpportunity(opportunity)) {
     toast.add({
       severity: 'warn',
@@ -525,10 +613,12 @@ async function createPackage(opportunity: JobOpportunity): Promise<void> {
     const applyPackage = await generateApplyPackage(opportunity.job_id, {
       career_profile_id: opportunity.career_profile_id ?? opportunity.match?.candidate_profile_id ?? opportunity.match?.profile_id ?? null,
       job_path_id: opportunity.job_path_id ?? opportunity.match?.job_path_id ?? null,
+      sections,
     })
 
     selectedOpportunity.value = opportunity
     selectedApplyPackage.value = applyPackage
+    packageOptionsVisible.value = false
     applyPackageVisible.value = true
 
     toast.add({

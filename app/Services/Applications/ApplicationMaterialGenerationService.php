@@ -13,7 +13,7 @@ class ApplicationMaterialGenerationService
     /**
      * @return Collection<int, ApplicationMaterial>
      */
-    public function generate(Application $application, bool $force = false): Collection
+    public function generate(Application $application, bool $force = false, array $sections = []): Collection
     {
         $application->loadMissing(['job.analysis', 'profile.experiences', 'profile.projects', 'tailoredResume', 'materials']);
 
@@ -34,18 +34,25 @@ class ApplicationMaterialGenerationService
         $context = $this->context($application, $match);
         $inputHash = sha1(json_encode($context, JSON_THROW_ON_ERROR).$promptVersion);
 
-        if (! $force && $application->materials->isNotEmpty() && $application->materials->every(
-            fn (ApplicationMaterial $material): bool => $material->prompt_version === $promptVersion && $material->input_hash === $inputHash
-        )) {
-            return $application->materials;
-        }
-
         $templates = AnswerTemplate::query()
             ->where('user_id', $application->user_id)
             ->get()
             ->keyBy('key');
 
-        $definitions = $this->definitions();
+        $definitions = collect($this->definitions());
+        $selectedKeys = $this->selectedKeys($sections);
+
+        if ($selectedKeys !== []) {
+            $definitions = $definitions->filter(fn (array $definition): bool => in_array($definition['key'], $selectedKeys, true));
+        }
+
+        $currentMaterials = $application->materials->whereIn('key', $definitions->pluck('key')->all());
+
+        if (! $force && $definitions->isNotEmpty() && $currentMaterials->count() === $definitions->count() && $currentMaterials->every(
+            fn (ApplicationMaterial $material): bool => $material->prompt_version === $promptVersion && $material->input_hash === $inputHash
+        )) {
+            return $currentMaterials->values();
+        }
 
         foreach ($definitions as $definition) {
             $template = $templates->get($definition['key']);
@@ -99,6 +106,20 @@ class ApplicationMaterialGenerationService
             ['key' => 'notice_period', 'material_type' => 'application_answer', 'title' => 'Notice period', 'question' => 'What is your notice period?'],
             ['key' => 'work_authorization', 'material_type' => 'application_answer', 'title' => 'Work authorization', 'question' => 'What is your current work authorization status?'],
         ];
+    }
+
+    /**
+     * @param array<int, mixed> $sections
+     * @return array<int, string>
+     */
+    private function selectedKeys(array $sections): array
+    {
+        return collect($sections)
+            ->map(fn (mixed $section): string => trim((string) $section))
+            ->filter(fn (string $section): bool => $section !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
