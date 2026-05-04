@@ -104,9 +104,17 @@
           </template>
         </Column>
 
-        <Column header="Score">
+        <Column header="Evaluation">
           <template #body="{ data }">
-            <ScoreBadge :score="data.display_score" :label="data.match_score ? 'Match' : 'Quick fit'" />
+            <ScoreBadge
+              v-if="isEvaluated(data)"
+              :score="evaluatedMatchScore(data)"
+              label="Match"
+            />
+            <div v-else class="space-y-1">
+              <Tag value="Not evaluated" severity="secondary" icon="pi pi-clock" />
+              <p class="text-xs text-slate-500">Pre-screened by Job Path</p>
+            </div>
           </template>
         </Column>
 
@@ -209,12 +217,17 @@
             <p class="mt-1 font-medium text-slate-900">{{ selectedOpportunity.job_path?.name || 'Primary profile' }}</p>
           </div>
           <div class="rounded-2xl bg-slate-50 p-4">
-            <p class="text-sm text-slate-500">Quick Score</p>
-            <p class="mt-1 font-medium text-slate-900">{{ selectedOpportunity.quick_relevance_score }}%</p>
+            <p class="text-sm text-slate-500">Pre-screen</p>
+            <p class="mt-1 font-medium text-slate-900">
+              {{ isEvaluated(selectedOpportunity) ? `${selectedOpportunity.quick_relevance_score}% initial fit` : 'Passed initial filter' }}
+            </p>
+            <p v-if="!isEvaluated(selectedOpportunity)" class="mt-1 text-xs text-slate-500">No match score until you run Evaluate Fit.</p>
           </div>
           <div class="rounded-2xl bg-slate-50 p-4">
             <p class="text-sm text-slate-500">Match Score</p>
-            <p class="mt-1 font-medium text-slate-900">{{ selectedOpportunity.match_score ?? 'Not evaluated' }}</p>
+            <p class="mt-1 font-medium text-slate-900">
+              {{ isEvaluated(selectedOpportunity) ? `${evaluatedMatchScore(selectedOpportunity)}% / threshold ${matchThreshold(selectedOpportunity)}%` : 'Not evaluated yet' }}
+            </p>
           </div>
         </div>
 
@@ -286,8 +299,42 @@
         </div>
 
         <div class="rounded-3xl border border-slate-200 bg-white p-4">
-          <h4 class="font-semibold text-slate-900">Description</h4>
-          <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ selectedOpportunity.job?.description_clean || selectedOpportunity.job?.description_raw || 'No description available.' }}</p>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 class="font-semibold text-slate-900">Job Description</h4>
+              <p class="mt-1 text-xs text-slate-500">Preserved from the collected source where possible: headings, bullets, and numbered lists.</p>
+            </div>
+            <Button
+              v-if="selectedOpportunity.job?.url"
+              label="Open Job"
+              icon="pi pi-external-link"
+              size="small"
+              severity="secondary"
+              outlined
+              @click="openExternalUrl(selectedOpportunity.job.url)"
+            />
+          </div>
+
+          <div class="mt-4 max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+            <div v-if="selectedDescriptionBlocks.length" class="space-y-4">
+              <template v-for="(block, index) in selectedDescriptionBlocks" :key="`${block.type}-${index}`">
+                <h5
+                  v-if="block.type === 'heading'"
+                  class="border-b border-slate-200 pb-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700"
+                >
+                  {{ block.text }}
+                </h5>
+                <ol v-else-if="block.type === 'list' && block.ordered" class="list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-700">
+                  <li v-for="item in block.items" :key="item">{{ item }}</li>
+                </ol>
+                <ul v-else-if="block.type === 'list'" class="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+                  <li v-for="item in block.items" :key="item">{{ item }}</li>
+                </ul>
+                <p v-else class="text-sm leading-7 text-slate-700">{{ block.text }}</p>
+              </template>
+            </div>
+            <p v-else class="text-sm text-slate-500">No description available.</p>
+          </div>
         </div>
       </div>
     </Dialog>
@@ -510,6 +557,11 @@ import { useDebouncedValue } from '@/shared/composables/useDebouncedValue'
 import { getApiErrorMessage } from '@/shared/utils/api'
 import { copyText } from '@/shared/utils/clipboard'
 
+type DescriptionBlock =
+  | { type: 'heading'; text: string }
+  | { type: 'paragraph'; text: string }
+  | { type: 'list'; ordered: boolean; items: string[] }
+
 const toast = useToast()
 const router = useRouter()
 const loading = ref(false)
@@ -560,6 +612,7 @@ const packageSectionOptions: Array<{ value: ApplyPackageSection; label: string; 
 const evaluatedCount = computed(() => opportunities.value.filter((opportunity) => isEvaluated(opportunity)).length)
 const pendingCount = computed(() => opportunities.value.filter((opportunity) => !isEvaluated(opportunity)).length)
 const bestMatchCount = computed(() => opportunities.value.filter((opportunity) => isFitOpportunity(opportunity)).length)
+const selectedDescriptionBlocks = computed(() => selectedOpportunity.value ? descriptionBlocks(selectedOpportunity.value) : [])
 
 const filteredOpportunities = computed(() => {
   const search = debouncedQuery.value.trim().toLowerCase()
@@ -879,6 +932,10 @@ function matchThreshold(opportunity: JobOpportunity): number {
   return opportunity.job_path?.min_match_score ?? 75
 }
 
+function evaluatedMatchScore(opportunity: JobOpportunity): number {
+  return normalizeScore(opportunity.match_score ?? opportunity.match?.overall_score)
+}
+
 function normalizeScore(value?: number | null): number {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return 0
@@ -931,6 +988,244 @@ function nextActionText(opportunity: JobOpportunity): string {
 
 function packageContinuedAnyway(applyPackage: ApplyPackage): boolean {
   return Boolean(applyPackage.metadata?.override_low_match || applyPackage.metadata?.continue_anyway)
+}
+
+function descriptionBlocks(opportunity: JobOpportunity): DescriptionBlock[] {
+  const rawDescription = opportunity.job?.description_raw || ''
+
+  if (hasHtmlDescription(rawDescription)) {
+    const htmlBlocks = htmlDescriptionBlocks(rawDescription)
+
+    if (htmlBlocks.length > 0) {
+      return htmlBlocks
+    }
+  }
+
+  const text = normalizeDescriptionText(opportunity.job?.description_clean || rawDescription)
+
+  if (!text) {
+    return []
+  }
+
+  return textDescriptionBlocks(text)
+}
+
+function textDescriptionBlocks(text: string): DescriptionBlock[] {
+  const blocks: DescriptionBlock[] = []
+  const listItems: string[] = []
+  let listOrdered = false
+  const flushList = () => {
+    if (listItems.length > 0) {
+      blocks.push({ type: 'list', ordered: listOrdered, items: [...listItems] })
+      listItems.length = 0
+      listOrdered = false
+    }
+  }
+
+  for (const line of text.split('\n').map((item) => item.trim()).filter(Boolean)) {
+    const bullet = line.match(/^([-*]|\u2022|\d+[.)])\s+(.+)$/)
+
+    const parsedBullet = bullet ?? line.match(/^(\u2022)\s+(.+)$/)
+
+    if (parsedBullet?.[2]) {
+      const ordered = /^\d+[.)]$/.test(parsedBullet[1])
+
+      if (listItems.length > 0 && ordered !== listOrdered) {
+        flushList()
+      }
+
+      listOrdered = ordered
+      listItems.push(parsedBullet[2].trim())
+      continue
+    }
+
+    flushList()
+
+    if (isDescriptionHeading(line)) {
+      blocks.push({ type: 'heading', text: line.replace(/:$/, '') })
+    } else {
+      blocks.push({ type: 'paragraph', text: line })
+    }
+  }
+
+  flushList()
+
+  return blocks
+}
+
+function htmlDescriptionBlocks(value: string): DescriptionBlock[] {
+  if (typeof DOMParser === 'undefined') {
+    return []
+  }
+
+  const document = new DOMParser().parseFromString(value, 'text/html')
+  const blocks: DescriptionBlock[] = []
+
+  appendHtmlChildren(document.body, blocks)
+
+  return mergeAdjacentDescriptionBlocks(blocks)
+}
+
+function appendHtmlChildren(parent: Element, blocks: DescriptionBlock[]): void {
+  parent.childNodes.forEach((node) => appendHtmlNode(node, blocks))
+}
+
+function appendHtmlNode(node: ChildNode, blocks: DescriptionBlock[]): void {
+  if (node.nodeType === 3) {
+    const text = cleanDescriptionText(node.textContent || '')
+
+    if (text) {
+      blocks.push({ type: 'paragraph', text })
+    }
+
+    return
+  }
+
+  if (node.nodeType !== 1) {
+    return
+  }
+
+  const element = node as HTMLElement
+  const tag = element.tagName.toLowerCase()
+
+  if (['script', 'style', 'noscript'].includes(tag)) {
+    return
+  }
+
+  const text = cleanDescriptionText(element.textContent || '')
+
+  if (!text && tag !== 'br') {
+    return
+  }
+
+  if (/^h[1-6]$/.test(tag)) {
+    blocks.push({ type: 'heading', text })
+    return
+  }
+
+  if (tag === 'ul' || tag === 'ol') {
+    const items = Array.from(element.children)
+      .filter((child) => child.tagName.toLowerCase() === 'li')
+      .map((child) => cleanDescriptionText(child.textContent || ''))
+      .filter(Boolean)
+
+    if (items.length > 0) {
+      blocks.push({ type: 'list', ordered: tag === 'ol', items })
+    }
+
+    return
+  }
+
+  if (tag === 'li') {
+    blocks.push({ type: 'list', ordered: false, items: [text] })
+    return
+  }
+
+  if (hasBlockChildren(element)) {
+    appendHtmlChildren(element, blocks)
+    return
+  }
+
+  if (['p', 'div', 'section', 'article', 'span', 'strong', 'em'].includes(tag)) {
+    blocks.push(isDescriptionHeading(text)
+      ? { type: 'heading', text: text.replace(/:$/, '') }
+      : { type: 'paragraph', text })
+  }
+}
+
+function mergeAdjacentDescriptionBlocks(blocks: DescriptionBlock[]): DescriptionBlock[] {
+  const merged: DescriptionBlock[] = []
+
+  for (const block of blocks) {
+    const previous = merged.at(-1)
+
+    if (block.type === 'list' && previous?.type === 'list' && previous.ordered === block.ordered) {
+      previous.items.push(...block.items)
+      continue
+    }
+
+    if (block.type === 'paragraph' && previous?.type === 'paragraph' && previous.text === block.text) {
+      continue
+    }
+
+    merged.push(block)
+  }
+
+  return merged
+}
+
+function hasBlockChildren(element: HTMLElement): boolean {
+  return Array.from(element.children).some((child) => /^(h[1-6]|p|div|section|article|ul|ol|li)$/i.test(child.tagName))
+}
+
+function hasHtmlDescription(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value)
+}
+
+function cleanDescriptionText(value: string): string {
+  return value
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeDescriptionText(value: string): string {
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '\n- ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function isDescriptionHeading(line: string): boolean {
+  const normalized = line.toLowerCase().replace(/:$/, '').trim()
+  const knownHeadings = [
+    'about',
+    'about the role',
+    'about this role',
+    'responsibilities',
+    'requirements',
+    'qualifications',
+    'required skills',
+    'preferred skills',
+    'nice to have',
+    'what you will do',
+    'what you will bring',
+    'benefits',
+    'salary',
+    'location',
+    'job description',
+  ]
+
+  if (knownHeadings.includes(normalized)) {
+    return true
+  }
+
+  if (line.endsWith(':') && line.length <= 90) {
+    return true
+  }
+
+  return line.length <= 70
+    && !/[.!?]$/.test(line)
+    && /(responsibilit|requirement|qualification|benefit|skill|experience|about|role|team|location|salary)/i.test(line)
+}
+
+function openExternalUrl(url?: string | null): void {
+  if (!url) {
+    return
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function normalizedAnswers(value: ApplyPackage['application_answers']): ApplyPackageAnswer[] {

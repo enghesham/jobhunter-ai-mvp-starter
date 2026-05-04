@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
+use App\Modules\Copilot\Domain\Models\JobOpportunity;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
@@ -63,6 +64,52 @@ class OpportunityTest extends TestCase
             ->assertJsonCount(2, 'data');
     }
 
+    public function test_default_opportunity_list_prefers_evaluated_duplicate_context(): void
+    {
+        config()->set('jobhunter.ai_enabled', false);
+
+        [$user, $profile] = $this->seedProfileAndPath();
+        JobPath::factory()->forCareerProfile($profile)->create([
+            'name' => 'API Platform Remote',
+            'include_keywords' => ['API', 'Laravel'],
+            'required_skills' => ['Laravel', 'PHP'],
+            'min_relevance_score' => 30,
+        ]);
+        $job = $this->createJob($user, 'Senior Laravel API Engineer', 'Build Laravel API products with PHP and PostgreSQL.');
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/jobhunter/opportunities/refresh')->assertOk();
+
+        $evaluatedOpportunity = JobOpportunity::query()
+            ->where('job_id', $job->id)
+            ->orderBy('quick_relevance_score')
+            ->firstOrFail();
+        $notEvaluatedOpportunity = JobOpportunity::query()
+            ->where('job_id', $job->id)
+            ->whereKeyNot($evaluatedOpportunity->id)
+            ->firstOrFail();
+
+        $this->postJson("/api/jobhunter/opportunities/{$evaluatedOpportunity->id}/evaluate")
+            ->assertOk()
+            ->assertJsonPath('data.is_evaluated', true);
+
+        $evaluatedOpportunity->refresh()->forceFill([
+            'match_score' => 40,
+            'status' => 'evaluated',
+        ])->save();
+        $notEvaluatedOpportunity->forceFill([
+            'quick_relevance_score' => 99,
+            'status' => 'recommended',
+        ])->save();
+
+        $this->getJson('/api/jobhunter/opportunities')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $evaluatedOpportunity->id)
+            ->assertJsonPath('data.0.is_evaluated', true);
+    }
+
     public function test_user_can_evaluate_only_selected_opportunity(): void
     {
         config()->set('jobhunter.ai_enabled', false);
@@ -114,6 +161,50 @@ class OpportunityTest extends TestCase
             ->assertJsonPath('data.opportunities.0.is_evaluated', true)
             ->assertJsonPath('data.opportunities.0.match_id', $evaluated['match_id'])
             ->assertJsonPath('data.opportunities.0.match_score', $evaluated['match_score']);
+    }
+
+    public function test_evaluated_low_fit_opportunity_stays_visible_by_default(): void
+    {
+        [$user, $profile, $path] = $this->seedProfileAndPath();
+        $job = $this->createJob($user, 'Junior PHP Support Developer', 'Basic support role with limited Laravel ownership.');
+        $match = JobMatch::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'profile_id' => $profile->id,
+            'job_path_id' => $path->id,
+            'context_key' => "path:{$path->id}",
+            'overall_score' => 38,
+            'title_score' => 35,
+            'skill_score' => 45,
+            'recommendation' => 'Weak fit',
+            'recommendation_action' => 'skip',
+            'matched_at' => now(),
+        ]);
+
+        JobOpportunity::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'job_path_id' => $path->id,
+            'career_profile_id' => $profile->id,
+            'match_id' => $match->id,
+            'context_key' => "path:{$path->id}",
+            'quick_relevance_score' => 70,
+            'match_score' => 38,
+            'status' => 'not_relevant',
+            'recommendation' => 'skip',
+            'reasons' => ['Manual low-fit evaluated opportunity.'],
+            'matched_keywords' => ['PHP'],
+            'missing_keywords' => ['Laravel'],
+            'evaluated_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/jobhunter/opportunities')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.is_evaluated', true)
+            ->assertJsonPath('data.0.match_score', 38);
     }
 
     public function test_best_matches_endpoint_only_returns_matches_above_threshold(): void

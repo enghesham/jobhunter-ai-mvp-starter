@@ -37,7 +37,14 @@ class OpportunityService
             ]);
 
         if (! (bool) ($filters['include_hidden'] ?? false)) {
-            $query->whereNotIn('status', ['hidden', 'not_relevant']);
+            $query
+                ->where('status', '!=', 'hidden')
+                ->where(function ($query): void {
+                    $query
+                        ->where('status', '!=', 'not_relevant')
+                        ->orWhereNotNull('match_id')
+                        ->orWhereNotNull('evaluated_at');
+                });
         }
 
         if (! empty($filters['job_path_id'])) {
@@ -48,9 +55,8 @@ class OpportunityService
 
         if (empty($filters['job_path_id']) && ! (bool) ($filters['show_duplicates'] ?? false)) {
             $items = $items
-                ->sortByDesc(fn (JobOpportunity $opportunity): int => (int) ($opportunity->match_score ?? $opportunity->quick_relevance_score))
                 ->groupBy('job_id')
-                ->map(fn ($group) => $group->first())
+                ->map(fn ($group) => $group->sort(fn (JobOpportunity $a, JobOpportunity $b): int => $this->compareForDefaultRepresentation($a, $b))->first())
                 ->values();
         }
 
@@ -144,6 +150,10 @@ class OpportunityService
                 'recommendation' => $match->recommendation_action ?: $match->recommendation,
                 'evaluated_at' => now(),
             ])->save();
+        } else {
+            throw ValidationException::withMessages([
+                'opportunity' => 'The opportunity could not be evaluated. Please try again.',
+            ]);
         }
 
         return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']);
@@ -302,15 +312,33 @@ class OpportunityService
 
     private function statusFromMatch(JobMatch $match): string
     {
-        if ($match->recommendation_action === 'skip' || (int) $match->overall_score < 45) {
-            return 'not_relevant';
-        }
-
         if ($match->recommendation_action === 'apply' || (int) $match->overall_score >= (int) config('jobhunter.match_threshold', 75)) {
             return 'recommended';
         }
 
         return 'evaluated';
+    }
+
+    private function compareForDefaultRepresentation(JobOpportunity $a, JobOpportunity $b): int
+    {
+        $evaluatedCompare = ((int) $this->isEvaluated($b)) <=> ((int) $this->isEvaluated($a));
+
+        if ($evaluatedCompare !== 0) {
+            return $evaluatedCompare;
+        }
+
+        $scoreCompare = ((int) ($b->match_score ?? $b->quick_relevance_score)) <=> ((int) ($a->match_score ?? $a->quick_relevance_score));
+
+        if ($scoreCompare !== 0) {
+            return $scoreCompare;
+        }
+
+        return ($b->updated_at?->timestamp ?? 0) <=> ($a->updated_at?->timestamp ?? 0);
+    }
+
+    private function isEvaluated(JobOpportunity $opportunity): bool
+    {
+        return $opportunity->match_id !== null || $opportunity->evaluated_at !== null;
     }
 
     private function jobText(Job $job): string
