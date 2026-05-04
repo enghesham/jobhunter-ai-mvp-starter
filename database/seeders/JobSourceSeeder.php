@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -23,8 +24,19 @@ class JobSourceSeeder extends Seeder
             );
         }
 
+        $updatedPaths = JobPath::query()
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->update([
+                'auto_collect_enabled' => true,
+                'scan_interval_hours' => 6,
+                'next_scan_at' => now()->subMinute(),
+            ]);
+
         $this->command?->info('Live-safe job sources seeded for '.$user->email.'.');
+        $this->command?->line("Enabled auto collection for {$updatedPaths} active Job Path(s).");
         $this->command?->line('Run: php artisan jobhunter:collect-jobs --user='.$user->id.' --sync');
+        $this->command?->line('Or force active paths now: php artisan jobhunter:collect-jobs --user='.$user->id.' --all-active --sync');
     }
 
     private function demoUser(): User

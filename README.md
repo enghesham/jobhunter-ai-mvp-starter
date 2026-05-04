@@ -440,6 +440,7 @@ Collection environment:
 JOBHUNTER_ALLOWED_SOURCES=custom,rss,greenhouse,lever
 JOBHUNTER_COLLECTION_SAFE_SOURCE_TYPES=rss,greenhouse,lever
 JOBHUNTER_COLLECTION_FETCH_TIMEOUT=20
+JOBHUNTER_COLLECTION_MAX_ACCEPT_THRESHOLD=55
 JOBHUNTER_COLLECTION_STORE_BELOW_THRESHOLD=false
 JOBHUNTER_COLLECTION_SCHEDULE_EVERY_MINUTES=15
 ```
@@ -461,6 +462,7 @@ php artisan jobhunter:scan-sources
 php artisan jobhunter:scan-sources --sync
 php artisan jobhunter:collect-jobs
 php artisan jobhunter:collect-jobs --sync
+php artisan jobhunter:collect-jobs --all-active --sync
 php artisan jobhunter:collect-jobs --path=1 --sync
 ```
 

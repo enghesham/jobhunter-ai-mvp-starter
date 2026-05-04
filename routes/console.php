@@ -133,14 +133,14 @@ Artisan::command('jobhunter:match-pending', function () {
     return self::SUCCESS;
 })->purpose('Match analyzed jobs that do not have a match yet');
 
-Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync}', function () {
+Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync} {--all-active}', function () {
     $query = JobPath::query()
         ->where('is_active', true)
         ->with('user');
 
     if ($this->option('path')) {
         $query->whereKey((int) $this->option('path'));
-    } else {
+    } elseif (! $this->option('all-active')) {
         $query->where('auto_collect_enabled', true)
             ->where(function ($query): void {
                 $query->whereNull('next_scan_at')
@@ -155,7 +155,10 @@ Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync}', function
     $paths = $query->get();
 
     if ($paths->isEmpty()) {
-        $this->warn('No due active Job Paths found.');
+        $this->warn($this->option('all-active')
+            ? 'No active Job Paths found.'
+            : 'No due active Job Paths found. Use --all-active to collect from active paths regardless of schedule.'
+        );
 
         return self::SUCCESS;
     }
@@ -163,6 +166,9 @@ Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync}', function
     foreach ($paths as $path) {
         if ($this->option('sync')) {
             $run = app(JobPathCollectionService::class)->collect($path);
+            $firstError = collect($run->metadata['sources'] ?? [])
+                ->first(fn (array $source): bool => (bool) ($source['failed'] ?? false))['error'] ?? null;
+
             $this->info("Collected jobs for [{$path->name}]: ".json_encode([
                 'run_id' => $run->id,
                 'status' => $run->status,
@@ -171,6 +177,8 @@ Artisan::command('jobhunter:collect-jobs {--user=} {--path=} {--sync}', function
                 'created' => $run->created_count,
                 'updated' => $run->updated_count,
                 'filtered' => $run->filtered_count,
+                'failed' => $run->failed_count,
+                'first_error' => $firstError,
             ]));
 
             continue;

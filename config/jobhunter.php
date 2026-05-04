@@ -22,6 +22,7 @@ return [
     'collection' => [
         'safe_source_types' => array_values(array_filter(array_map('trim', explode(',', (string) env('JOBHUNTER_COLLECTION_SAFE_SOURCE_TYPES', 'rss,greenhouse,lever'))))),
         'fetch_timeout' => (int) env('JOBHUNTER_COLLECTION_FETCH_TIMEOUT', 20),
+        'max_accept_threshold' => (int) env('JOBHUNTER_COLLECTION_MAX_ACCEPT_THRESHOLD', 55),
         'store_below_threshold' => filter_var(env('JOBHUNTER_COLLECTION_STORE_BELOW_THRESHOLD', false), FILTER_VALIDATE_BOOL),
         'schedule_every_minutes' => (int) env('JOBHUNTER_COLLECTION_SCHEDULE_EVERY_MINUTES', 15),
     ],

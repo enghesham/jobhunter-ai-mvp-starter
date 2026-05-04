@@ -33,7 +33,7 @@ class JobPathRelevanceScorer
         $targetRoles = $this->stringList($path?->target_roles ?? $profile?->preferred_roles ?? [$profile?->primary_role, $profile?->headline]);
         $roleHits = $this->matchedTerms($text, $targetRoles);
         if ($roleHits !== []) {
-            $score += min(30, count($roleHits) * 15);
+            $score += min(45, count($roleHits) * 35);
             $matched = [...$matched, ...$roleHits];
             $reasons[] = 'Role match: '.implode(', ', array_slice($roleHits, 0, 3));
         }
@@ -41,27 +41,27 @@ class JobPathRelevanceScorer
         $requiredSkills = $this->stringList($path?->required_skills ?? $profile?->core_skills ?? []);
         $requiredHits = $this->matchedTerms($text, $requiredSkills);
         if ($requiredHits !== []) {
-            $score += min(30, count($requiredHits) * 8);
+            $score += min(35, count($requiredHits) * 20);
             $matched = [...$matched, ...$requiredHits];
             $reasons[] = 'Required skills found: '.implode(', ', array_slice($requiredHits, 0, 4));
         }
 
         $keywordHits = $this->matchedTerms($text, $this->stringList($path?->include_keywords ?? []));
         if ($keywordHits !== []) {
-            $score += min(20, count($keywordHits) * 5);
+            $score += min(25, count($keywordHits) * 8);
             $matched = [...$matched, ...$keywordHits];
             $reasons[] = 'Path keywords found: '.implode(', ', array_slice($keywordHits, 0, 4));
         }
 
         $optionalHits = $this->matchedTerms($text, $this->stringList($path?->optional_skills ?? $profile?->nice_to_have_skills ?? []));
         if ($optionalHits !== []) {
-            $score += min(10, count($optionalHits) * 4);
+            $score += min(15, count($optionalHits) * 6);
             $matched = [...$matched, ...$optionalHits];
             $reasons[] = 'Optional strengths found: '.implode(', ', array_slice($optionalHits, 0, 3));
         }
 
         if ($this->locationMatches($job, $path, $profile)) {
-            $score += 10;
+            $score += 15;
             $reasons[] = 'Location or workplace preference matches.';
         }
 
@@ -102,10 +102,49 @@ class JobPathRelevanceScorer
     {
         return collect($terms)
             ->map(fn (string $term): string => trim($term))
-            ->filter(fn (string $term): bool => $term !== '' && str_contains($text, mb_strtolower($term)))
+            ->filter(fn (string $term): bool => $term !== '' && $this->containsTerm($text, $term))
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function containsTerm(string $text, string $term): bool
+    {
+        $normalizedTerm = mb_strtolower(trim($term));
+
+        if ($normalizedTerm === '') {
+            return false;
+        }
+
+        if (str_contains($text, $normalizedTerm)) {
+            return true;
+        }
+
+        $tokens = $this->significantTokens($normalizedTerm);
+
+        if (count($tokens) <= 1) {
+            return false;
+        }
+
+        $hits = collect($tokens)
+            ->filter(fn (string $token): bool => str_contains($text, $token))
+            ->count();
+
+        return ($hits / count($tokens)) >= 0.6;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function significantTokens(string $value): array
+    {
+        $tokens = preg_split('/[^a-z0-9+#.]+/i', mb_strtolower($value)) ?: [];
+        $stopWords = ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'with', 'remote', 'senior'];
+
+        return array_values(array_filter(
+            array_unique($tokens),
+            fn (string $token): bool => strlen($token) >= 3 && ! in_array($token, $stopWords, true),
+        ));
     }
 
     /**

@@ -228,7 +228,12 @@ class JobPathCollectionService
             return true;
         }
 
-        return $score >= (int) $jobPath->min_relevance_score;
+        $collectionThreshold = min(
+            (int) $jobPath->min_relevance_score,
+            (int) config('jobhunter.collection.max_accept_threshold', 55),
+        );
+
+        return $score >= $collectionThreshold;
     }
 
     private function primaryProfile(User $user): ?CandidateProfile
