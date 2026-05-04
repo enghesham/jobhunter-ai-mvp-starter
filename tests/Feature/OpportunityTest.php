@@ -84,6 +84,38 @@ class OpportunityTest extends TestCase
         $this->assertGreaterThanOrEqual(70, $response->json('data.match_score'));
     }
 
+    public function test_refresh_preserves_evaluated_flag_and_match_data(): void
+    {
+        config()->set('jobhunter.ai_enabled', false);
+
+        [$user, , $path] = $this->seedProfileAndPath();
+        $job = $this->createJob($user, 'Senior Laravel Backend Engineer', 'Senior backend role using PHP, Laravel, REST APIs, Redis, Docker, and AWS.');
+
+        Sanctum::actingAs($user);
+
+        $opportunityId = $this->postJson('/api/jobhunter/opportunities/refresh')
+            ->assertOk()
+            ->json('data.opportunities.0.id');
+
+        $evaluated = $this->postJson("/api/jobhunter/opportunities/{$opportunityId}/evaluate")
+            ->assertOk()
+            ->assertJsonPath('data.is_evaluated', true)
+            ->json('data');
+
+        $path->forceFill(['min_relevance_score' => 100])->save();
+        $job->forceFill([
+            'description_raw' => 'A short role description that no longer passes quick relevance.',
+            'description_clean' => 'A short role description that no longer passes quick relevance.',
+        ])->save();
+
+        $this->postJson('/api/jobhunter/opportunities/refresh')
+            ->assertOk()
+            ->assertJsonPath('data.opportunities.0.id', $opportunityId)
+            ->assertJsonPath('data.opportunities.0.is_evaluated', true)
+            ->assertJsonPath('data.opportunities.0.match_id', $evaluated['match_id'])
+            ->assertJsonPath('data.opportunities.0.match_score', $evaluated['match_score']);
+    }
+
     public function test_best_matches_endpoint_only_returns_matches_above_threshold(): void
     {
         [$user, $profile, $path] = $this->seedProfileAndPath();

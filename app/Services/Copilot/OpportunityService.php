@@ -205,12 +205,6 @@ class OpportunityService
         $minimum = (int) ($path?->min_relevance_score ?? config('jobhunter.opportunities.default_min_relevance_score', 45));
         $storeBelowThreshold = (bool) config('jobhunter.opportunities.store_below_threshold', false);
 
-        if ($score['score'] < $minimum && ! $storeBelowThreshold) {
-            $stats['skipped']++;
-
-            return;
-        }
-
         $contextKey = $path ? "path:{$path->id}" : 'primary';
         $status = $score['score'] < $minimum
             ? 'not_relevant'
@@ -222,18 +216,38 @@ class OpportunityService
             'context_key' => $contextKey,
         ]);
         $exists = $opportunity->exists;
+        $isEvaluated = $opportunity->exists && ($opportunity->match_id !== null || $opportunity->evaluated_at !== null);
+
+        if ($score['score'] < $minimum && ! $storeBelowThreshold && ! $isEvaluated) {
+            $stats['skipped']++;
+
+            return;
+        }
 
         $opportunity->fill([
             'job_path_id' => $path?->id,
-            'career_profile_id' => $profile?->id,
+            'career_profile_id' => $opportunity->career_profile_id ?: $profile?->id,
             'quick_relevance_score' => $score['score'],
-            'status' => $opportunity->status === 'hidden' ? 'hidden' : $status,
+            'status' => $this->statusForRefresh($opportunity, $status),
             'reasons' => $score['reasons'],
             'matched_keywords' => $score['matched_keywords'],
             'missing_keywords' => $score['missing_keywords'],
         ])->save();
 
         $stats[$exists ? 'updated' : 'created']++;
+    }
+
+    private function statusForRefresh(JobOpportunity $opportunity, string $quickStatus): string
+    {
+        if ($opportunity->status === 'hidden') {
+            return 'hidden';
+        }
+
+        if ($opportunity->match_id !== null || $opportunity->evaluated_at !== null) {
+            return $opportunity->status ?: 'evaluated';
+        }
+
+        return $quickStatus;
     }
 
     /**

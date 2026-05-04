@@ -11,6 +11,7 @@ export interface JobOpportunity {
   quick_relevance_score: number
   match_score?: number | null
   display_score: number
+  is_evaluated?: boolean
   status: string
   recommendation?: string | null
   reasons: string[]

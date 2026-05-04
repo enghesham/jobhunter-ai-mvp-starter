@@ -829,7 +829,7 @@ function isFitOpportunity(opportunity: JobOpportunity): boolean {
 }
 
 function isEvaluated(opportunity: JobOpportunity): boolean {
-  return Boolean(opportunity.match_id || opportunity.evaluated_at)
+  return Boolean(opportunity.is_evaluated || opportunity.match_id || opportunity.evaluated_at)
 }
 
 function hasApplyPackage(opportunity: JobOpportunity): boolean {

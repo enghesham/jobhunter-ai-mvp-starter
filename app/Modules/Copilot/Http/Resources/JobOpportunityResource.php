@@ -23,6 +23,7 @@ class JobOpportunityResource extends JsonResource
             'quick_relevance_score' => $this->quick_relevance_score,
             'match_score' => $this->match_score,
             'display_score' => $this->match_score ?? $this->quick_relevance_score,
+            'is_evaluated' => $this->match_id !== null || $this->evaluated_at !== null,
             'status' => $this->status,
             'recommendation' => $this->recommendation,
             'reasons' => $this->reasons ?? [],
