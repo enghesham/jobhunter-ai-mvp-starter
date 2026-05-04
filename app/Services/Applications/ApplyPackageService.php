@@ -54,12 +54,20 @@ class ApplyPackageService
         $force = (bool) ($payload['force'] ?? false);
         $sections = $this->sectionsFromPayload($payload);
         $existing = $this->existingPackage($job, $profile, $jobPath);
+        $overrideLowMatch = (bool) ($payload['override_low_match'] ?? $payload['continue_anyway'] ?? false);
+        $overrideReason = is_string($payload['override_reason'] ?? null)
+            ? trim($payload['override_reason'])
+            : null;
 
         $resume = in_array('tailored_resume', $sections, true)
             ? $this->resumeGenerationService->generate($job, $profile, 'apply-package', $force)
             : $existing?->resume;
 
         $context = $this->context($job, $profile, $jobPath, $match, $resume, $sections);
+        $context['user_decision'] = [
+            'override_low_match' => $overrideLowMatch,
+            'override_reason' => $overrideReason,
+        ];
         $promptVersion = $this->prompt->version();
         $inputHash = hash('sha256', json_encode($context, JSON_UNESCAPED_SLASHES).$promptVersion);
 
@@ -76,6 +84,9 @@ class ApplyPackageService
             'source' => 'fallback',
             'match_id' => $match?->id,
             'selected_sections' => $sections,
+            'override_low_match' => $overrideLowMatch,
+            'continue_anyway' => $overrideLowMatch,
+            'override_reason' => $overrideReason,
             'answer_template_keys' => collect($context['answer_templates'] ?? [])->pluck('key')->values()->all(),
         ];
         $aiProvider = null;

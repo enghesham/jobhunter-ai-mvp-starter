@@ -22,6 +22,9 @@ export async function generateApplyPackage(jobId: number, payload: GenerateApply
     job_path_id: payload.job_path_id ?? null,
     sections: payload.sections ?? undefined,
     force: payload.force ?? false,
+    override_low_match: payload.override_low_match ?? payload.continue_anyway ?? false,
+    continue_anyway: payload.continue_anyway ?? payload.override_low_match ?? false,
+    override_reason: payload.override_reason ?? undefined,
   })
 
   return extractApiData<ApplyPackage>(response.data)

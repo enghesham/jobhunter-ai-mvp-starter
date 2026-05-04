@@ -145,6 +145,39 @@ class ApplyPackageTest extends TestCase
             ->assertJsonPath('data.status', 'ready');
     }
 
+    public function test_user_can_continue_with_low_fit_job_when_generating_apply_package(): void
+    {
+        [$user, , $path, $job] = $this->seedScenario();
+        $this->fakeAiProvider(exception: new AiProviderException('provider failed'));
+
+        JobMatch::query()
+            ->where('user_id', $user->id)
+            ->where('job_id', $job->id)
+            ->update([
+                'overall_score' => 42,
+                'recommendation' => 'weak_match',
+                'recommendation_action' => 'skip',
+            ]);
+
+        Sanctum::actingAs($user);
+
+        $packageId = $this->postJson("/api/jobhunter/jobs/{$job->id}/apply-package", [
+            'job_path_id' => $path->id,
+            'sections' => ['cover_letter'],
+            'override_low_match' => true,
+            'override_reason' => 'User chose to continue after low score.',
+        ])->assertCreated()
+            ->assertJsonPath('data.metadata.override_low_match', true)
+            ->assertJsonPath('data.metadata.continue_anyway', true)
+            ->assertJsonPath('data.metadata.override_reason', 'User chose to continue after low score.')
+            ->json('data.id');
+
+        $package = ApplyPackage::query()->findOrFail($packageId);
+
+        $this->assertTrue($package->metadata['override_low_match']);
+        $this->assertSame('User chose to continue after low score.', $package->metadata['override_reason']);
+    }
+
     public function test_user_can_generate_only_selected_apply_package_sections(): void
     {
         [$user, , $path, $job] = $this->seedScenario();

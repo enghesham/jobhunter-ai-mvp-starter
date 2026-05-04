@@ -149,16 +149,16 @@
               />
               <Tag
                 v-else
-                value="Evaluated"
-                severity="info"
-                icon="pi pi-check-circle"
+                :value="evaluationStatusLabel(data)"
+                :severity="evaluationStatusSeverity(data)"
+                :icon="evaluationStatusIcon(data)"
               />
               <Button
-                v-if="isFitOpportunity(data) && !hasApplyPackage(data)"
-                label="Create Apply Package"
-                icon="pi pi-file-edit"
+                v-if="canCreateApplyPackage(data)"
+                :label="applyPackageActionLabel(data)"
+                :icon="applyPackageActionIcon(data)"
                 size="small"
-                severity="success"
+                :severity="applyPackageActionSeverity(data)"
                 :loading="generatingPackageOpportunityId === data.id"
                 @click="openPackageOptions(data)"
               />
@@ -230,6 +230,12 @@
             <p class="mt-3 text-sm leading-6 text-slate-700">
               {{ nextActionText(selectedOpportunity) }}
             </p>
+            <div
+              v-if="isLowFitOpportunity(selectedOpportunity)"
+              class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+            >
+              This job is below your apply threshold. You can continue anyway, but review the gaps before creating an application.
+            </div>
             <div class="mt-4 flex flex-wrap gap-2">
               <Button
                 v-if="!isEvaluated(selectedOpportunity)"
@@ -241,16 +247,16 @@
               />
               <Tag
                 v-else
-                value="Evaluated"
-                severity="info"
-                icon="pi pi-check-circle"
+                :value="evaluationStatusLabel(selectedOpportunity)"
+                :severity="evaluationStatusSeverity(selectedOpportunity)"
+                :icon="evaluationStatusIcon(selectedOpportunity)"
               />
               <Button
-                v-if="isFitOpportunity(selectedOpportunity) && !hasApplyPackage(selectedOpportunity)"
-                label="Create Apply Package"
-                icon="pi pi-file-edit"
+                v-if="canCreateApplyPackage(selectedOpportunity)"
+                :label="applyPackageActionLabel(selectedOpportunity)"
+                :icon="applyPackageActionIcon(selectedOpportunity)"
                 size="small"
-                severity="success"
+                :severity="applyPackageActionSeverity(selectedOpportunity)"
                 :loading="generatingPackageOpportunityId === selectedOpportunity.id"
                 @click="openPackageOptions(selectedOpportunity)"
               />
@@ -264,8 +270,11 @@
                 :loading="loadingPackageOpportunityId === selectedOpportunity.id"
                 @click="viewPackage(selectedOpportunity)"
               />
-              <RouterLink v-if="selectedOpportunity.match_id" to="/matches">
+              <RouterLink v-if="isFitOpportunity(selectedOpportunity)" to="/matches">
                 <Button label="Open Best Matches" icon="pi pi-star" size="small" text />
+              </RouterLink>
+              <RouterLink v-else-if="isEvaluated(selectedOpportunity)" to="/matches">
+                <Button label="Open Match History" icon="pi pi-history" size="small" severity="secondary" text />
               </RouterLink>
             </div>
           </div>
@@ -288,6 +297,13 @@
         <div>
           <h3 class="text-xl font-semibold text-slate-900">{{ packageOptionsOpportunity?.job?.title || 'Selected opportunity' }}</h3>
           <p class="mt-1 text-sm text-slate-500">Choose only what you need now. Fewer sections means less AI context and faster generation.</p>
+        </div>
+
+        <div
+          v-if="packageOptionsOpportunity && isLowFitOpportunity(packageOptionsOpportunity)"
+          class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+        >
+          Low-fit override: this job did not pass your threshold. Generate this package only if you intentionally want to continue.
         </div>
 
         <div class="grid gap-3 md:grid-cols-2">
@@ -355,6 +371,13 @@
               @click="createApplicationFromPackage"
             />
           </div>
+        </div>
+
+        <div
+          v-if="packageContinuedAnyway(selectedApplyPackage)"
+          class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+        >
+          This package was created after you chose to continue with a job below your match threshold. Use it carefully and review the gaps before applying.
         </div>
 
         <div class="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
@@ -534,8 +557,8 @@ const packageSectionOptions: Array<{ value: ApplyPackageSection; label: string; 
   { value: 'follow_up_email', label: 'Follow-up email', description: 'A post-application follow-up template.' },
 ]
 
-const evaluatedCount = computed(() => opportunities.value.filter((opportunity) => opportunity.match_id).length)
-const pendingCount = computed(() => opportunities.value.filter((opportunity) => !opportunity.match_id).length)
+const evaluatedCount = computed(() => opportunities.value.filter((opportunity) => isEvaluated(opportunity)).length)
+const pendingCount = computed(() => opportunities.value.filter((opportunity) => !isEvaluated(opportunity)).length)
 const bestMatchCount = computed(() => opportunities.value.filter((opportunity) => isFitOpportunity(opportunity)).length)
 
 const filteredOpportunities = computed(() => {
@@ -684,16 +707,17 @@ async function confirmCreatePackage(): Promise<void> {
 }
 
 async function createPackage(opportunity: JobOpportunity, sections: ApplyPackageSection[]): Promise<void> {
-  if (!isFitOpportunity(opportunity)) {
+  if (!isEvaluated(opportunity)) {
     toast.add({
       severity: 'warn',
       summary: 'Evaluate fit first',
-      detail: 'Create an apply package only after the job passes your match threshold.',
+      detail: 'Run evaluation first so the package can use the score, reasons, and gaps.',
       life: 4000,
     })
     return
   }
 
+  const continuingAnyway = isLowFitOpportunity(opportunity)
   generatingPackageOpportunityId.value = opportunity.id
 
   try {
@@ -701,6 +725,11 @@ async function createPackage(opportunity: JobOpportunity, sections: ApplyPackage
       career_profile_id: opportunity.career_profile_id ?? opportunity.match?.candidate_profile_id ?? opportunity.match?.profile_id ?? null,
       job_path_id: opportunity.job_path_id ?? opportunity.match?.job_path_id ?? null,
       sections,
+      override_low_match: continuingAnyway,
+      continue_anyway: continuingAnyway,
+      override_reason: continuingAnyway
+        ? 'User chose to continue after the opportunity did not pass the match threshold.'
+        : null,
     })
 
     selectedOpportunity.value = opportunity
@@ -725,7 +754,9 @@ async function createPackage(opportunity: JobOpportunity, sections: ApplyPackage
     toast.add({
       severity: 'success',
       summary: 'Apply package ready',
-      detail: 'Resume, cover letter, answers, and follow-up content were prepared.',
+      detail: continuingAnyway
+        ? 'Package created with a low-fit override. Review the gaps before applying.'
+        : 'Resume, cover letter, answers, and follow-up content were prepared.',
       life: 4000,
     })
   } catch (error) {
@@ -828,6 +859,14 @@ function isFitOpportunity(opportunity: JobOpportunity): boolean {
   return normalizeScore(opportunity.match_score ?? opportunity.match?.overall_score) >= matchThreshold(opportunity)
 }
 
+function canCreateApplyPackage(opportunity: JobOpportunity): boolean {
+  return isEvaluated(opportunity) && !hasApplyPackage(opportunity)
+}
+
+function isLowFitOpportunity(opportunity: JobOpportunity): boolean {
+  return isEvaluated(opportunity) && !isFitOpportunity(opportunity)
+}
+
 function isEvaluated(opportunity: JobOpportunity): boolean {
   return Boolean(opportunity.is_evaluated || opportunity.match_id || opportunity.evaluated_at)
 }
@@ -848,6 +887,30 @@ function normalizeScore(value?: number | null): number {
   return value <= 1 ? Math.round(value * 100) : Math.round(value)
 }
 
+function applyPackageActionLabel(opportunity: JobOpportunity): string {
+  return isLowFitOpportunity(opportunity) ? 'Continue Anyway' : 'Create Apply Package'
+}
+
+function applyPackageActionIcon(opportunity: JobOpportunity): string {
+  return isLowFitOpportunity(opportunity) ? 'pi pi-exclamation-triangle' : 'pi pi-file-edit'
+}
+
+function applyPackageActionSeverity(opportunity: JobOpportunity): 'success' | 'warn' {
+  return isLowFitOpportunity(opportunity) ? 'warn' : 'success'
+}
+
+function evaluationStatusLabel(opportunity: JobOpportunity): string {
+  return isFitOpportunity(opportunity) ? 'Fit evaluated' : 'Low fit'
+}
+
+function evaluationStatusIcon(opportunity: JobOpportunity): string {
+  return isFitOpportunity(opportunity) ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'
+}
+
+function evaluationStatusSeverity(opportunity: JobOpportunity): 'success' | 'warn' {
+  return isFitOpportunity(opportunity) ? 'success' : 'warn'
+}
+
 function nextActionText(opportunity: JobOpportunity): string {
   if (!isEvaluated(opportunity)) {
     return 'Run Evaluate Fit only if this job looks worth deeper AI analysis.'
@@ -863,7 +926,11 @@ function nextActionText(opportunity: JobOpportunity): string {
     return 'This job passed your threshold. Create an apply package with a tailored CV, cover letter, answers, and follow-up email.'
   }
 
-  return 'This job was evaluated but did not pass your apply threshold. Keep it in history or hide it from your main list.'
+  return 'This job was evaluated but did not pass your apply threshold. You can hide it, keep it in history, or continue anyway if you still want to apply.'
+}
+
+function packageContinuedAnyway(applyPackage: ApplyPackage): boolean {
+  return Boolean(applyPackage.metadata?.override_low_match || applyPackage.metadata?.continue_anyway)
 }
 
 function normalizedAnswers(value: ApplyPackage['application_answers']): ApplyPackageAnswer[] {

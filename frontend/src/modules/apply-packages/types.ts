@@ -67,4 +67,7 @@ export interface GenerateApplyPackagePayload {
   job_path_id?: number | null
   sections?: ApplyPackageSection[]
   force?: boolean
+  override_low_match?: boolean
+  continue_anyway?: boolean
+  override_reason?: string | null
 }
