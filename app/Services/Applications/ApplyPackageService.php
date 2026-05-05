@@ -489,20 +489,20 @@ class ApplyPackageService
         $candidate = $context['candidate_profile'];
         $job = $context['job'];
         $match = $context['match'] ?? [];
-        $resume = $context['resume'] ?? [];
+        $analysis = $job['analysis'] ?? [];
         $templateContext = $this->templateContext($context);
         $company = $job['company_name'] ?: 'your company';
         $title = $job['title'] ?: 'the role';
         $name = $candidate['full_name'] ?: 'Candidate';
         $headline = $candidate['headline'] ?: 'professional';
-        $strengths = array_values(array_unique(array_filter([
-            ...($match['strength_areas'] ?? []),
-            ...array_slice($candidate['skills'] ?? [], 0, 4),
-        ])));
-        $gaps = array_values(array_unique(array_filter([
-            ...($match['missing_required_skills'] ?? []),
-            ...($resume['warnings_or_gaps'] ?? []),
-        ])));
+        $summary = trim((string) ($candidate['summary'] ?? ''));
+        $strengths = $this->fallbackStrengths($context);
+        $gaps = $this->fallbackGaps($context);
+        $responsibilities = $this->stringListFromMixed($analysis['responsibilities'] ?? []);
+        $focusText = $this->sentenceList(array_slice($strengths, 0, 4), 'relevant delivery and problem solving');
+        $gapText = $this->sentenceList(array_slice($gaps, 0, 3), 'No major profile gaps were detected from the available data.');
+        $responsibilityText = $this->sentenceList(array_slice($responsibilities, 0, 3), 'the core responsibilities of the role');
+        $recommendation = $match['recommendation_action'] ?? $match['recommendation'] ?? null;
         $coverLetter = $this->renderTemplateByKey($context, 'cover_letter', $templateContext);
         $whyInterested = $this->renderTemplateByKey($context, 'why_interested', $templateContext);
         $aboutMe = $this->renderTemplateByKey($context, 'about_me', $templateContext);
@@ -512,12 +512,24 @@ class ApplyPackageService
         $followUp = $this->renderTemplateByKey($context, 'follow_up_email', $templateContext);
 
         return [
-            'cover_letter' => $coverLetter ?: trim("Dear Hiring Team,\n\nI am interested in the {$title} role at {$company}. My background as a {$headline} aligns with the responsibilities of this role, especially around ".($strengths === [] ? 'relevant delivery and problem solving' : implode(', ', array_slice($strengths, 0, 4))).".\n\nI would welcome the chance to discuss how my experience can support your team.\n\nBest regards,\n{$name}"),
+            'cover_letter' => $coverLetter ?: trim("Dear Hiring Team,\n\nI am interested in the {$title} role at {$company}. My background as a {$headline} aligns with this role around {$focusText}.\n\nFrom the job description, the role appears to focus on {$responsibilityText}. Based on my profile, I would position my application around the strongest matching evidence and stay transparent about any gaps: {$gapText}\n\nI would welcome the chance to discuss how my experience can support your team.\n\nBest regards,\n{$name}"),
             'application_answers' => [
                 [
                     'key' => 'about_me',
                     'question' => 'Tell us about yourself.',
-                    'answer' => $aboutMe ?: "I am {$name}, {$headline}. My work has focused on ".($candidate['summary'] ?: 'building reliable products and systems').'.',
+                    'answer' => $aboutMe ?: "I am {$name}, {$headline}. ".($summary !== '' ? $summary : 'My work has focused on building reliable products and systems.').' For this role, I would highlight '.$focusText.'.',
+                ],
+                [
+                    'key' => 'strengths_for_role',
+                    'question' => 'What strengths make you a fit for this role?',
+                    'answer' => "The strongest fit signals are {$focusText}. These are based on the saved career profile, job analysis, and match result.",
+                ],
+                [
+                    'key' => 'areas_to_address',
+                    'question' => 'Are there any areas you would need to ramp up on?',
+                    'answer' => $gaps === []
+                        ? 'No major gaps were detected from the saved profile and job analysis. I would still confirm expectations during the interview process.'
+                        : "The areas to clarify or ramp up on are {$gapText}. I would address these honestly and focus on adjacent experience where relevant.",
                 ],
                 [
                     'key' => 'work_authorization',
@@ -529,17 +541,149 @@ class ApplyPackageService
                 ? sprintf('My expected compensation is around %s %s, depending on the full scope, benefits, and work arrangement.', $candidate['salary_expectation'], $candidate['salary_currency'] ?: '')
                 : 'I am open to discussing a compensation package aligned with the responsibilities, scope, and market range for this role.'),
             'notice_period_answer' => $noticePeriod ?: 'My notice period can be confirmed based on final offer timing and current commitments.',
-            'interest_answer' => $whyInterested ?: "I am interested in {$company} because this {$title} role aligns with my background and the kind of work I want to keep building.",
+            'interest_answer' => $whyInterested ?: "I am interested in {$company} because this {$title} role aligns with {$focusText}. The role also appears to involve {$responsibilityText}, which is where I would focus my application.",
             'strengths' => $strengths,
             'gaps' => $gaps,
-            'interview_questions' => [
-                "Which outcomes should the {$title} role deliver in the first 90 days?",
-                'How does the team measure success for this position?',
-                'What are the main technical or business challenges this role will own?',
-                'How is the team structured and how does this role collaborate with others?',
-            ],
-            'follow_up_email' => $followUp ?: "Subject: Follow-up on {$title} application\n\nDear Hiring Team,\n\nI wanted to follow up on my application for the {$title} role at {$company}. I remain interested in the opportunity and would be glad to share any additional information that helps with the review process.\n\nBest regards,\n{$name}",
+            'interview_questions' => $this->fallbackInterviewQuestions($title, $responsibilities, $gaps, $recommendation),
+            'follow_up_email' => $followUp ?: "Subject: Follow-up on {$title} application\n\nDear Hiring Team,\n\nI wanted to follow up on my application for the {$title} role at {$company}. I remain interested in the opportunity and would be glad to share any additional information about {$focusText}.\n\nBest regards,\n{$name}",
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<int, string>
+     */
+    private function fallbackStrengths(array $context): array
+    {
+        $candidate = $context['candidate_profile'] ?? [];
+        $job = $context['job'] ?? [];
+        $analysis = $job['analysis'] ?? [];
+        $match = $context['match'] ?? [];
+        $jobPath = $context['job_path'] ?? [];
+        $skills = $this->stringListFromMixed($candidate['skills'] ?? []);
+        $niceSkills = $this->stringListFromMixed($candidate['nice_to_have_skills'] ?? []);
+        $allCandidateSkills = [...$skills, ...$niceSkills];
+        $requiredSkills = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($analysis['must_have_skills'] ?? []),
+            ...$this->stringListFromMixed($analysis['required_skills'] ?? []),
+            ...$this->stringListFromMixed($jobPath['required_skills'] ?? []),
+        ]);
+        $preferredSkills = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($analysis['nice_to_have_skills'] ?? []),
+            ...$this->stringListFromMixed($analysis['preferred_skills'] ?? []),
+            ...$this->stringListFromMixed($jobPath['optional_skills'] ?? []),
+        ]);
+        $strengths = $this->stringListFromMixed($match['strength_areas'] ?? []);
+
+        foreach ($this->overlappingLabels($allCandidateSkills, $requiredSkills) as $skill) {
+            $strengths[] = "Direct match with required skill: {$skill}";
+        }
+
+        foreach (array_slice($this->overlappingLabels($allCandidateSkills, $preferredSkills), 0, 4) as $skill) {
+            $strengths[] = "Additional match with preferred skill: {$skill}";
+        }
+
+        if (($match['skill_score'] ?? 0) >= 80) {
+            $strengths[] = 'Strong skill alignment based on the saved match score.';
+        }
+
+        if (($match['experience_score'] ?? 0) >= 75 || (($candidate['years_experience'] ?? 0) >= ($analysis['years_experience_min'] ?? 0) && ($analysis['years_experience_min'] ?? 0) > 0)) {
+            $years = (int) ($candidate['years_experience'] ?? 0);
+            $strengths[] = $years > 0
+                ? "Experience depth fits the role expectation: {$years}+ years in the profile."
+                : 'Experience depth appears aligned with the role expectation.';
+        }
+
+        if (($match['location_score'] ?? 0) >= 80) {
+            $strengths[] = 'Workplace/location preference appears aligned.';
+        }
+
+        $roleType = trim((string) ($analysis['role_type'] ?? ''));
+        if ($roleType !== '') {
+            $strengths[] = 'Role focus alignment: '.$roleType.'.';
+        }
+
+        return $this->uniqueStrings($strengths, 8);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<int, string>
+     */
+    private function fallbackGaps(array $context): array
+    {
+        $candidate = $context['candidate_profile'] ?? [];
+        $job = $context['job'] ?? [];
+        $analysis = $job['analysis'] ?? [];
+        $match = $context['match'] ?? [];
+        $resume = $context['resume'] ?? [];
+        $skills = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($candidate['skills'] ?? []),
+            ...$this->stringListFromMixed($candidate['nice_to_have_skills'] ?? []),
+        ]);
+        $requiredSkills = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($analysis['must_have_skills'] ?? []),
+            ...$this->stringListFromMixed($analysis['required_skills'] ?? []),
+        ]);
+        $preferredSkills = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($analysis['nice_to_have_skills'] ?? []),
+            ...$this->stringListFromMixed($analysis['preferred_skills'] ?? []),
+        ]);
+        $gaps = $this->stringListFromMixed([
+            ...$this->stringListFromMixed($match['missing_required_skills'] ?? []),
+            ...$this->stringListFromMixed($match['missing_skills'] ?? []),
+            ...$this->stringListFromMixed($match['nice_to_have_gaps'] ?? []),
+            ...$this->stringListFromMixed($resume['warnings_or_gaps'] ?? []),
+        ]);
+
+        foreach ($this->missingLabels($skills, $requiredSkills) as $skill) {
+            $gaps[] = "Required skill not explicit in profile: {$skill}";
+        }
+
+        foreach (array_slice($this->missingLabels($skills, $preferredSkills), 0, 4) as $skill) {
+            $gaps[] = "Preferred skill to clarify: {$skill}";
+        }
+
+        $candidateYears = (int) ($candidate['years_experience'] ?? 0);
+        $minimumYears = (int) ($analysis['years_experience_min'] ?? 0);
+        if ($minimumYears > 0 && $candidateYears > 0 && $candidateYears < $minimumYears) {
+            $gaps[] = "Experience expectation may be higher than profile: role asks for {$minimumYears}+ years; profile has {$candidateYears}.";
+        }
+
+        foreach ($this->stringListFromMixed($match['risk_flags'] ?? []) as $risk) {
+            $gaps[] = "Risk to address: {$risk}";
+        }
+
+        return $this->uniqueStrings($gaps, 8);
+    }
+
+    /**
+     * @param array<int, string> $responsibilities
+     * @param array<int, string> $gaps
+     * @return array<int, string>
+     */
+    private function fallbackInterviewQuestions(string $title, array $responsibilities, array $gaps, mixed $recommendation): array
+    {
+        $questions = [
+            "Which outcomes should the {$title} role deliver in the first 90 days?",
+            'How does the team measure success for this position?',
+        ];
+
+        foreach (array_slice($responsibilities, 0, 2) as $responsibility) {
+            $questions[] = "How much ownership would this role have over {$responsibility}?";
+        }
+
+        foreach (array_slice($gaps, 0, 2) as $gap) {
+            $questions[] = "How important is this area for day-one success: {$gap}?";
+        }
+
+        if (in_array($recommendation, ['skip', 'consider'], true)) {
+            $questions[] = 'Which requirements are strict must-haves versus areas that can be learned after joining?';
+        }
+
+        $questions[] = 'How is the team structured and how does this role collaborate with others?';
+
+        return $this->uniqueStrings($questions, 6);
     }
 
     /**
@@ -719,6 +863,144 @@ class ApplyPackageService
             fn (mixed $item): string => trim((string) $item),
             $value,
         )));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function stringListFromMixed(mixed $value): array
+    {
+        if (is_string($value) || is_numeric($value)) {
+            $value = [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $items = [];
+
+        foreach ($value as $item) {
+            if (is_array($item)) {
+                $items = [...$items, ...$this->stringListFromMixed($item)];
+
+                continue;
+            }
+
+            $text = trim((string) $item);
+
+            if ($text !== '') {
+                $items[] = $text;
+            }
+        }
+
+        return $this->uniqueStrings($items);
+    }
+
+    /**
+     * @param array<int, string> $values
+     * @return array<int, string>
+     */
+    private function uniqueStrings(array $values, ?int $limit = null): array
+    {
+        $seen = [];
+        $result = [];
+
+        foreach ($values as $value) {
+            $text = trim((string) $value);
+
+            if ($text === '') {
+                continue;
+            }
+
+            $key = $this->normalizeLabel($text);
+
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $result[] = $text;
+
+            if ($limit !== null && count($result) >= $limit) {
+                break;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<int, string> $candidateLabels
+     * @param array<int, string> $targetLabels
+     * @return array<int, string>
+     */
+    private function overlappingLabels(array $candidateLabels, array $targetLabels): array
+    {
+        $candidateIndex = [];
+
+        foreach ($candidateLabels as $label) {
+            $normalized = $this->normalizeLabel($label);
+
+            if ($normalized !== '') {
+                $candidateIndex[$normalized] = true;
+            }
+        }
+
+        return $this->uniqueStrings(array_values(array_filter($targetLabels, function (string $label) use ($candidateIndex): bool {
+            return isset($candidateIndex[$this->normalizeLabel($label)]);
+        })));
+    }
+
+    /**
+     * @param array<int, string> $candidateLabels
+     * @param array<int, string> $targetLabels
+     * @return array<int, string>
+     */
+    private function missingLabels(array $candidateLabels, array $targetLabels): array
+    {
+        $candidateIndex = [];
+
+        foreach ($candidateLabels as $label) {
+            $normalized = $this->normalizeLabel($label);
+
+            if ($normalized !== '') {
+                $candidateIndex[$normalized] = true;
+            }
+        }
+
+        return $this->uniqueStrings(array_values(array_filter($targetLabels, function (string $label) use ($candidateIndex): bool {
+            return ! isset($candidateIndex[$this->normalizeLabel($label)]);
+        })));
+    }
+
+    private function normalizeLabel(string $value): string
+    {
+        return Str::of($value)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9+#.]+/', ' ')
+            ->squish()
+            ->toString();
+    }
+
+    /**
+     * @param array<int, string> $items
+     */
+    private function sentenceList(array $items, string $fallback): string
+    {
+        $items = $this->uniqueStrings($items, 5);
+
+        if ($items === []) {
+            return $fallback;
+        }
+
+        if (count($items) === 1) {
+            return $items[0];
+        }
+
+        $last = array_pop($items);
+
+        return implode(', ', $items).' and '.$last;
     }
 
     /**

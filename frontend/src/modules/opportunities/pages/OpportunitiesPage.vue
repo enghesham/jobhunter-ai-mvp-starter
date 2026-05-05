@@ -41,25 +41,52 @@
     <SkeletonTable v-if="loading" :columns="7" />
 
     <div v-else class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <IconField class="w-full lg:max-w-sm">
-          <InputIcon class="pi pi-search" />
-          <InputText v-model.trim="query" fluid placeholder="Search title, company, path, or keyword" />
-        </IconField>
+      <div class="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+        <div class="grid gap-3 xl:grid-cols-[minmax(18rem,1fr)_14rem_17rem_auto] xl:items-center">
+          <IconField class="w-full">
+            <InputIcon class="pi pi-search" />
+            <InputText v-model.trim="query" fluid placeholder="Search title, company, path, or keyword" />
+          </IconField>
 
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            <Checkbox v-model="includeHidden" binary @change="loadOpportunities" />
-            Show hidden / not relevant
-          </label>
-          <label class="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            <Checkbox v-model="showDuplicates" binary @change="loadOpportunities" />
-            Show duplicates by path
-          </label>
-          <label class="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <Checkbox v-model="bestMatchesOnly" binary />
-            Best matches only
-          </label>
+          <Select
+            v-model="viewFilter"
+            :options="viewFilterOptions"
+            option-label="label"
+            option-value="value"
+            fluid
+            aria-label="Filter opportunities view"
+          />
+
+          <Select
+            v-model="scopeFilter"
+            :options="scopeFilterOptions"
+            option-label="label"
+            option-value="value"
+            fluid
+            aria-label="Filter list scope"
+            @change="loadOpportunities"
+          />
+
+          <Button
+            label="Reset"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            :disabled="!hasActiveFilters"
+            @click="resetFilters"
+          />
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span class="rounded-full bg-white px-3 py-1 shadow-sm">
+            Showing {{ filteredOpportunities.length }} of {{ opportunities.length }}
+          </span>
+          <Tag :value="activeViewLabel" severity="info" />
+          <Tag v-if="includeHidden" value="Hidden included" severity="warn" />
+          <Tag v-if="showDuplicates" value="Duplicates visible" severity="secondary" />
+          <span v-if="debouncedQuery" class="rounded-full bg-white px-3 py-1 shadow-sm">
+            Search: "{{ debouncedQuery }}"
+          </span>
         </div>
       </div>
 
@@ -530,6 +557,7 @@ import Dialog from 'primevue/dialog'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
 import {
@@ -561,6 +589,8 @@ type DescriptionBlock =
   | { type: 'heading'; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'list'; ordered: boolean; items: string[] }
+type OpportunityViewFilter = 'all' | 'best' | 'evaluated' | 'pending'
+type OpportunityScopeFilter = 'default' | 'include_hidden' | 'show_duplicates' | 'expanded'
 
 const toast = useToast()
 const router = useRouter()
@@ -575,9 +605,8 @@ const downloadingResumeId = ref<number | null>(null)
 const errorMessage = ref('')
 const query = ref('')
 const debouncedQuery = useDebouncedValue(query, 250)
-const includeHidden = ref(false)
-const showDuplicates = ref(false)
-const bestMatchesOnly = ref(false)
+const viewFilter = ref<OpportunityViewFilter>('all')
+const scopeFilter = ref<OpportunityScopeFilter>('default')
 const opportunities = ref<JobOpportunity[]>([])
 const selectedOpportunity = ref<JobOpportunity | null>(null)
 const selectedApplyPackage = ref<ApplyPackage | null>(null)
@@ -608,17 +637,39 @@ const packageSectionOptions: Array<{ value: ApplyPackageSection; label: string; 
   { value: 'interview_questions', label: 'Interview prep', description: 'Questions to ask or prepare for.' },
   { value: 'follow_up_email', label: 'Follow-up email', description: 'A post-application follow-up template.' },
 ]
+const viewFilterOptions: Array<{ label: string; value: OpportunityViewFilter }> = [
+  { label: 'All opportunities', value: 'all' },
+  { label: 'Best matches', value: 'best' },
+  { label: 'Evaluated only', value: 'evaluated' },
+  { label: 'Not evaluated', value: 'pending' },
+]
+const scopeFilterOptions: Array<{ label: string; value: OpportunityScopeFilter }> = [
+  { label: 'Default list', value: 'default' },
+  { label: 'Include hidden / low relevance', value: 'include_hidden' },
+  { label: 'Show duplicates by path', value: 'show_duplicates' },
+  { label: 'Full review mode', value: 'expanded' },
+]
 
+const includeHidden = computed(() => scopeFilter.value === 'include_hidden' || scopeFilter.value === 'expanded')
+const showDuplicates = computed(() => scopeFilter.value === 'show_duplicates' || scopeFilter.value === 'expanded')
 const evaluatedCount = computed(() => opportunities.value.filter((opportunity) => isEvaluated(opportunity)).length)
 const pendingCount = computed(() => opportunities.value.filter((opportunity) => !isEvaluated(opportunity)).length)
 const bestMatchCount = computed(() => opportunities.value.filter((opportunity) => isFitOpportunity(opportunity)).length)
 const selectedDescriptionBlocks = computed(() => selectedOpportunity.value ? descriptionBlocks(selectedOpportunity.value) : [])
+const activeViewLabel = computed(() => viewFilterOptions.find((option) => option.value === viewFilter.value)?.label || 'All opportunities')
+const hasActiveFilters = computed(() => query.value.trim() !== '' || viewFilter.value !== 'all' || scopeFilter.value !== 'default')
 
 const filteredOpportunities = computed(() => {
   const search = debouncedQuery.value.trim().toLowerCase()
-  const pool = bestMatchesOnly.value
-    ? opportunities.value.filter((opportunity) => isFitOpportunity(opportunity))
-    : opportunities.value
+  let pool = opportunities.value
+
+  if (viewFilter.value === 'best') {
+    pool = pool.filter((opportunity) => isFitOpportunity(opportunity))
+  } else if (viewFilter.value === 'evaluated') {
+    pool = pool.filter((opportunity) => isEvaluated(opportunity))
+  } else if (viewFilter.value === 'pending') {
+    pool = pool.filter((opportunity) => !isEvaluated(opportunity))
+  }
 
   if (!search) {
     return pool
@@ -650,6 +701,18 @@ async function loadOpportunities(): Promise<void> {
     errorMessage.value = getApiErrorMessage(error, 'Failed to load opportunities.')
   } finally {
     loading.value = false
+  }
+}
+
+async function resetFilters(): Promise<void> {
+  const needsReload = scopeFilter.value !== 'default'
+
+  query.value = ''
+  viewFilter.value = 'all'
+  scopeFilter.value = 'default'
+
+  if (needsReload) {
+    await loadOpportunities()
   }
 }
 

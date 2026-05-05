@@ -9,6 +9,7 @@ use App\Modules\Applications\Domain\Models\ApplyPackage;
 use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\Job;
+use App\Modules\Jobs\Domain\Models\JobAnalysis;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Modules\Matching\Domain\Models\JobMatch;
 use App\Services\AI\Contracts\AiProviderException;
@@ -143,6 +144,56 @@ class ApplyPackageTest extends TestCase
             ->assertJsonPath('data.fallback_used', true)
             ->assertJsonPath('data.ai_provider', null)
             ->assertJsonPath('data.status', 'ready');
+    }
+
+    public function test_fallback_package_derives_strengths_and_gaps_from_job_analysis(): void
+    {
+        [$user, , $path, $job] = $this->seedScenario();
+        $this->fakeAiProvider(exception: new AiProviderException('provider failed'));
+
+        JobMatch::query()
+            ->where('user_id', $user->id)
+            ->where('job_id', $job->id)
+            ->update([
+                'strength_areas' => [],
+                'missing_required_skills' => [],
+                'nice_to_have_gaps' => [],
+                'risk_flags' => [],
+            ]);
+
+        JobAnalysis::query()->updateOrCreate(['job_id' => $job->id], [
+            'required_skills' => ['Laravel', 'PostgreSQL', 'Kubernetes'],
+            'preferred_skills' => ['AWS', 'Terraform'],
+            'must_have_skills' => ['Laravel'],
+            'nice_to_have_skills' => ['Terraform'],
+            'role_type' => 'backend',
+            'years_experience_min' => 8,
+            'responsibilities' => [
+                'build reliable Laravel APIs',
+                'own PostgreSQL-backed services',
+            ],
+            'analyzed_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $payload = $this->postJson("/api/jobhunter/jobs/{$job->id}/apply-package", [
+            'job_path_id' => $path->id,
+            'sections' => ['strengths_gaps', 'application_answers', 'interview_questions'],
+        ])->assertCreated()
+            ->assertJsonPath('data.fallback_used', true)
+            ->json('data');
+
+        $this->assertContains('Direct match with required skill: Laravel', $payload['strengths']);
+        $this->assertContains('Direct match with required skill: PostgreSQL', $payload['strengths']);
+        $this->assertContains('Required skill not explicit in profile: Kubernetes', $payload['gaps']);
+        $this->assertContains('Preferred skill to clarify: Terraform', $payload['gaps']);
+        $this->assertTrue(collect($payload['application_answers'])->contains(
+            fn (array $answer): bool => $answer['key'] === 'strengths_for_role'
+        ));
+        $this->assertTrue(collect($payload['interview_questions'])->contains(
+            fn (string $question): bool => str_contains($question, 'Kubernetes')
+        ));
     }
 
     public function test_user_can_continue_with_low_fit_job_when_generating_apply_package(): void
