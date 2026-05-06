@@ -190,6 +190,10 @@ class OpportunityService
 
         $coreSkills = $this->uniqueStrings($profile->core_skills ?? []);
         $niceToHaveSkills = $this->uniqueStrings($profile->nice_to_have_skills ?? []);
+        $requiredGaps = $this->lowercaseLookup(array_merge(
+            $opportunity->match?->missing_required_skills ?? [],
+            $opportunity->match?->missing_skills ?? [],
+        ));
         $niceToHaveGaps = $this->lowercaseLookup($opportunity->match?->nice_to_have_gaps ?? []);
         $addedCoreSkills = [];
         $addedNiceToHaveSkills = [];
@@ -199,7 +203,9 @@ class OpportunityService
                 continue;
             }
 
-            if (isset($niceToHaveGaps[mb_strtolower($skill)])) {
+            $skillKey = mb_strtolower($skill);
+
+            if (! isset($requiredGaps[$skillKey]) && isset($niceToHaveGaps[$skillKey])) {
                 $niceToHaveSkills[] = $skill;
                 $addedNiceToHaveSkills[] = $skill;
             } else {
@@ -222,6 +228,10 @@ class OpportunityService
             'nice_to_have_skills' => $niceToHaveSkills,
             'metadata' => $metadata,
         ])->save();
+
+        if ((int) $opportunity->career_profile_id !== (int) $profile->id) {
+            $opportunity->forceFill(['career_profile_id' => $profile->id])->save();
+        }
 
         return [
             'opportunity' => $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']),

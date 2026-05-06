@@ -68,7 +68,10 @@ class JobMatchExplanationService
      */
     private function fallback(CandidateProfile $profile, Job $job, array $scoreBreakdown, string $promptVersion, string $inputHash, float $startedAt): array
     {
-        $candidateSkills = collect($profile->core_skills ?? [])->map(fn (string $skill): string => mb_strtolower($skill))->all();
+        $candidateSkills = collect(array_merge(
+            $profile->core_skills ?? [],
+            $profile->nice_to_have_skills ?? [],
+        ))->map(fn (string $skill): string => mb_strtolower($skill))->all();
         $requiredSkills = collect($job->analysis?->required_skills ?? [])->map(fn (string $skill): string => mb_strtolower($skill))->all();
         $missingSkills = collect($job->analysis?->required_skills ?? [])
             ->filter(fn (string $skill): bool => ! in_array(mb_strtolower($skill), $candidateSkills, true))

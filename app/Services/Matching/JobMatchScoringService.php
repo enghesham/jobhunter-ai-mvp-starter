@@ -14,7 +14,10 @@ class JobMatchScoringService
     public function score(CandidateProfile $profile, Job $job, ?JobPath $jobPath = null): array
     {
         $analysis = $job->analysis;
-        $candidateSkills = $this->normalize($profile->core_skills ?? []);
+        $candidateSkills = $this->normalize(array_merge(
+            $profile->core_skills ?? [],
+            $profile->nice_to_have_skills ?? [],
+        ));
         $requiredSkills = $this->normalize($analysis?->required_skills ?? []);
         $preferredSkills = $this->normalize($analysis?->preferred_skills ?? []);
         $matchedSkills = array_values(array_intersect($candidateSkills, $requiredSkills));

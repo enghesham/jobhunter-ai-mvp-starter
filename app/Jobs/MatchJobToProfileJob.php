@@ -42,6 +42,7 @@ class MatchJobToProfileJob implements ShouldQueue
         $contextKey = $jobPath ? "path:{$jobPath->id}" : 'primary';
         $score = $scoringService->score($profile, $job, $jobPath);
         $explanation = $explanationService->explain($profile, $job, $score, $this->force, $contextKey);
+        $missingSkills = $this->withoutProfileSkills($explanation['missing_skills'] ?? [], $profile);
 
         if (($explanation['cache_hit'] ?? false) === true) {
             $job->forceFill(['status' => 'matched'])->save();
@@ -66,8 +67,8 @@ class MatchJobToProfileJob implements ShouldQueue
                 'path_relevance_reasons' => $score['path_relevance_reasons'] ?? [],
                 'notes' => $score['notes'],
                 'why_matched' => $explanation['why_matched'] ?? null,
-                'missing_skills' => $explanation['missing_skills'] ?? [],
-                'missing_required_skills' => $score['missing_required_skills'] ?? ($explanation['missing_skills'] ?? []),
+                'missing_skills' => $missingSkills,
+                'missing_required_skills' => $score['missing_required_skills'] ?? $missingSkills,
                 'nice_to_have_gaps' => $score['nice_to_have_gaps'] ?? [],
                 'strength_areas' => $explanation['strength_areas'] ?? [],
                 'risk_flags' => $explanation['risk_flags'] ?? [],
@@ -89,5 +90,32 @@ class MatchJobToProfileJob implements ShouldQueue
         );
 
         $job->forceFill(['status' => 'matched'])->save();
+    }
+
+    /**
+     * @param array<int, mixed> $skills
+     * @return array<int, string>
+     */
+    private function withoutProfileSkills(array $skills, CandidateProfile $profile): array
+    {
+        $profileSkills = collect(array_merge(
+            $profile->core_skills ?? [],
+            $profile->nice_to_have_skills ?? [],
+        ))
+            ->map(fn (mixed $skill): string => $this->normalizeSkill((string) $skill))
+            ->filter()
+            ->flip();
+
+        return collect($skills)
+            ->map(fn (mixed $skill): string => trim((string) $skill))
+            ->filter(fn (string $skill): bool => $skill !== '' && ! $profileSkills->has($this->normalizeSkill($skill)))
+            ->unique(fn (string $skill): string => $this->normalizeSkill($skill))
+            ->values()
+            ->all();
+    }
+
+    private function normalizeSkill(string $skill): string
+    {
+        return mb_strtolower(trim(preg_replace('/[^\pL\pN#+.]+/u', ' ', $skill) ?: ''));
     }
 }

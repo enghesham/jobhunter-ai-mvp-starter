@@ -358,22 +358,38 @@
         </div>
 
         <div v-if="selectedOpportunity.match" class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
-          <h4 class="font-semibold text-slate-900">Evaluation result</h4>
-          <p class="mt-2 text-sm leading-6 text-slate-700">{{ selectedOpportunity.match.ai_recommendation_summary || selectedOpportunity.match.notes }}</p>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h4 class="font-semibold text-slate-900">Evaluation result</h4>
+            <Button
+              v-if="shouldShowReevaluationPrompt(selectedOpportunity)"
+              label="Re-evaluate now"
+              icon="pi pi-refresh"
+              size="small"
+              :loading="evaluatingId === selectedOpportunity.id"
+              @click="evaluate(selectedOpportunity, true)"
+            />
+          </div>
+          <p class="mt-2 text-sm leading-6 text-slate-700">{{ evaluationSummary(selectedOpportunity) }}</p>
           <div class="mt-3 flex flex-wrap gap-2">
             <Tag v-for="item in preview(selectedOpportunity.match.strength_areas, 5)" :key="`strength-${item}`" :value="item" severity="success" />
             <Tag
-              v-for="item in preview(selectedOpportunity.match.missing_required_skills || selectedOpportunity.match.missing_skills, 5)"
+              v-for="item in preview(evaluationMissingSkills(selectedOpportunity), 5)"
               :key="`missing-${item}`"
               :value="item"
               severity="danger"
               icon="pi pi-times-circle"
             />
+            <Tag
+              v-if="selectedOpportunity.match && !evaluationMissingSkills(selectedOpportunity).length"
+              value="No current skill gaps"
+              severity="success"
+              icon="pi pi-check-circle"
+            />
           </div>
         </div>
 
         <div
-          v-if="selectedOpportunity.match && (candidateMissingSkillOptions(selectedOpportunity).length || profileSkillsUpdatedForOpportunityId === selectedOpportunity.id)"
+          v-if="selectedOpportunity.match && (candidateMissingSkillOptions(selectedOpportunity).length || shouldShowReevaluationPrompt(selectedOpportunity))"
           class="rounded-3xl border border-red-200 bg-red-50 p-4"
         >
           <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -418,14 +434,14 @@
               @click="addSelectedGapsToProfile(selectedOpportunity)"
             />
             <Button
-              v-if="profileSkillsUpdatedForOpportunityId === selectedOpportunity.id"
+              v-if="shouldShowReevaluationPrompt(selectedOpportunity)"
               label="Re-evaluate now"
               icon="pi pi-refresh"
               size="small"
               :loading="evaluatingId === selectedOpportunity.id"
               @click="evaluate(selectedOpportunity, true)"
             />
-            <span v-if="profileSkillsUpdatedForOpportunityId === selectedOpportunity.id" class="text-sm font-medium text-red-900">
+            <span v-if="shouldShowReevaluationPrompt(selectedOpportunity)" class="text-sm font-medium text-red-900">
               Profile updated. Re-evaluation is recommended.
             </span>
           </div>
@@ -1175,10 +1191,48 @@ function opportunityGaps(opportunity: JobOpportunity): string[] {
   }
 
   return uniqueList([
-    ...uniqueList(match.missing_required_skills, match.missing_skills).map(formatSkillGap),
-    ...uniqueList(match.nice_to_have_gaps).map(formatNiceToHaveGap),
-    ...uniqueList(match.risk_flags),
-  ]).filter((gap) => !profileHasSkill(opportunity, gap))
+    ...currentRequiredSkillGaps(opportunity).map(formatSkillGap),
+    ...currentNiceToHaveGaps(opportunity).map(formatNiceToHaveGap),
+    ...currentRiskFlags(opportunity),
+  ])
+}
+
+function evaluationMissingSkills(opportunity: JobOpportunity): string[] {
+  return uniqueList(currentRequiredSkillGaps(opportunity), currentNiceToHaveGaps(opportunity))
+}
+
+function currentRequiredSkillGaps(opportunity: JobOpportunity): string[] {
+  const match = opportunity.match
+
+  if (!match) {
+    return []
+  }
+
+  return uniqueList(match.missing_required_skills, match.missing_skills)
+    .filter((skill) => !profileHasSkill(opportunity, skill))
+}
+
+function currentNiceToHaveGaps(opportunity: JobOpportunity): string[] {
+  const match = opportunity.match
+
+  if (!match) {
+    return []
+  }
+
+  return uniqueList(match.nice_to_have_gaps)
+    .filter((skill) => !profileHasSkill(opportunity, skill))
+}
+
+function currentRiskFlags(opportunity: JobOpportunity): string[] {
+  const match = opportunity.match
+  const skillGapsRemain = currentRequiredSkillGaps(opportunity).length > 0 || currentNiceToHaveGaps(opportunity).length > 0
+
+  if (!match) {
+    return []
+  }
+
+  return uniqueList(match.risk_flags)
+    .filter((flag) => skillGapsRemain || !/(skill|missing|required|unclear)/i.test(flag))
 }
 
 function candidateMissingSkillOptions(opportunity: JobOpportunity): string[] {
@@ -1259,10 +1313,19 @@ function profileIdForOpportunity(opportunity: JobOpportunity): number | null {
 }
 
 function profileHasSkill(opportunity: JobOpportunity, skill: string): boolean {
+  const needle = normalizeSkillKey(skill)
+
   return [
     ...(opportunity.career_profile?.core_skills || []),
     ...(opportunity.career_profile?.nice_to_have_skills || []),
-  ].some((item) => item.toLowerCase() === skill.toLowerCase())
+  ].some((item) => normalizeSkillKey(item) === needle)
+}
+
+function normalizeSkillKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}#+.]+/gu, ' ')
+    .trim()
 }
 
 function opportunityFocusPoints(opportunity: JobOpportunity): string[] {
@@ -1282,6 +1345,45 @@ function opportunityFocusPoints(opportunity: JobOpportunity): string[] {
   }
 
   return []
+}
+
+function evaluationSummary(opportunity: JobOpportunity): string {
+  const match = opportunity.match
+
+  if (!match) {
+    return ''
+  }
+
+  if (hasResolvedStoredGaps(opportunity)) {
+    const remaining = evaluationMissingSkills(opportunity)
+
+    if (remaining.length === 0) {
+      return 'The previous skill gaps are now in your Career Profile. Re-evaluate this opportunity to refresh the score and recommendation.'
+    }
+
+    return `Some previous gaps are now in your Career Profile. Remaining gaps: ${remaining.slice(0, 5).join(', ')}. Re-evaluate to refresh the score.`
+  }
+
+  return match.ai_recommendation_summary || match.notes || 'Evaluation was saved for this opportunity.'
+}
+
+function shouldShowReevaluationPrompt(opportunity: JobOpportunity): boolean {
+  return isEvaluated(opportunity)
+    && (
+      profileSkillsUpdatedForOpportunityId.value === opportunity.id
+      || hasResolvedStoredGaps(opportunity)
+    )
+}
+
+function hasResolvedStoredGaps(opportunity: JobOpportunity): boolean {
+  const match = opportunity.match
+
+  if (!match) {
+    return false
+  }
+
+  return uniqueList(match.missing_required_skills, match.missing_skills, match.nice_to_have_gaps)
+    .some((skill) => profileHasSkill(opportunity, skill))
 }
 
 function formatFitReason(value: string): string {
