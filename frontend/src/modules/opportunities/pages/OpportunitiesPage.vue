@@ -145,20 +145,28 @@
           </template>
         </Column>
 
-        <Column header="Why shown">
+        <Column header="Fit reasons">
           <template #body="{ data }">
             <ul class="max-w-md space-y-1 text-sm text-slate-600">
-              <li v-for="reason in preview(data.reasons, 3)" :key="`${data.id}-${reason}`">{{ reason }}</li>
-              <li v-if="!data.reasons?.length" class="text-slate-400">No quick reasons recorded.</li>
+              <li v-for="reason in preview(opportunityFitReasons(data), 3)" :key="`${data.id}-${reason}`">{{ reason }}</li>
+              <li v-if="!opportunityFitReasons(data).length" class="text-slate-400">
+                {{ isEvaluated(data) ? 'No match reasons recorded.' : 'No quick reasons recorded.' }}
+              </li>
             </ul>
           </template>
         </Column>
 
-        <Column header="Signals">
+        <Column header="Gaps / Signals">
           <template #body="{ data }">
             <div class="flex max-w-sm flex-wrap gap-2">
-              <Tag v-for="keyword in preview(data.matched_keywords, 4)" :key="`${data.id}-match-${keyword}`" :value="keyword" severity="success" />
-              <Tag v-for="keyword in preview(data.missing_keywords, 2)" :key="`${data.id}-missing-${keyword}`" :value="keyword" severity="warn" />
+              <template v-if="isEvaluated(data)">
+                <Tag v-for="gap in preview(opportunityGaps(data), 4)" :key="`${data.id}-gap-${gap}`" :value="gap" severity="danger" icon="pi pi-times-circle" />
+                <Tag v-if="!opportunityGaps(data).length" value="No major gaps" severity="success" />
+              </template>
+              <template v-else>
+                <Tag v-for="keyword in preview(data.matched_keywords, 4)" :key="`${data.id}-match-${keyword}`" :value="keyword" severity="success" />
+                <Tag v-for="keyword in preview(data.missing_keywords, 2)" :key="`${data.id}-missing-${keyword}`" :value="keyword" severity="warn" />
+              </template>
             </div>
           </template>
         </Column>
@@ -258,7 +266,36 @@
           </div>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-2">
+        <div v-if="isEvaluated(selectedOpportunity) && selectedOpportunity.match" class="grid gap-4 lg:grid-cols-3">
+          <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+            <h4 class="font-semibold text-emerald-950">Why this is a good fit</h4>
+            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-emerald-900">
+              <li v-for="reason in opportunityFitReasons(selectedOpportunity)" :key="reason">{{ reason }}</li>
+              <li v-if="!opportunityFitReasons(selectedOpportunity).length">No strong fit reason was recorded.</li>
+            </ul>
+          </div>
+
+          <div class="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+            <h4 class="font-semibold text-amber-950">Potential gaps</h4>
+            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-amber-900">
+              <li v-for="gap in opportunityGaps(selectedOpportunity)" :key="gap" class="flex items-start gap-2">
+                <i class="pi pi-times-circle mt-1 text-xs text-red-600" />
+                <span>{{ gap }}</span>
+              </li>
+              <li v-if="!opportunityGaps(selectedOpportunity).length">No major required gaps were flagged.</li>
+            </ul>
+          </div>
+
+          <div class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
+            <h4 class="font-semibold text-sky-950">What to focus on</h4>
+            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-sky-900">
+              <li v-for="point in opportunityFocusPoints(selectedOpportunity)" :key="point">{{ point }}</li>
+              <li v-if="!opportunityFocusPoints(selectedOpportunity).length">{{ nextActionText(selectedOpportunity) }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div v-else class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
             <h4 class="font-semibold text-slate-900">Why this appeared</h4>
             <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
@@ -323,6 +360,75 @@
         <div v-if="selectedOpportunity.match" class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
           <h4 class="font-semibold text-slate-900">Evaluation result</h4>
           <p class="mt-2 text-sm leading-6 text-slate-700">{{ selectedOpportunity.match.ai_recommendation_summary || selectedOpportunity.match.notes }}</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <Tag v-for="item in preview(selectedOpportunity.match.strength_areas, 5)" :key="`strength-${item}`" :value="item" severity="success" />
+            <Tag
+              v-for="item in preview(selectedOpportunity.match.missing_required_skills || selectedOpportunity.match.missing_skills, 5)"
+              :key="`missing-${item}`"
+              :value="item"
+              severity="danger"
+              icon="pi pi-times-circle"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="selectedOpportunity.match && (candidateMissingSkillOptions(selectedOpportunity).length || profileSkillsUpdatedForOpportunityId === selectedOpportunity.id)"
+          class="rounded-3xl border border-red-200 bg-red-50 p-4"
+        >
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h4 class="font-semibold text-red-950">Do you already have these skills?</h4>
+              <p class="mt-1 text-sm leading-6 text-red-900/80">
+                If the system marked a skill as missing but you forgot to add it to your Career Profile, select it here.
+                After saving, re-evaluate the job to refresh the match score.
+              </p>
+            </div>
+            <RouterLink to="/candidate-profile">
+              <Button label="Open Profile" icon="pi pi-user-edit" size="small" severity="secondary" outlined />
+            </RouterLink>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              v-for="skill in candidateMissingSkillOptions(selectedOpportunity)"
+              :key="skill"
+              type="button"
+              class="rounded-full border px-3 py-1.5 text-sm font-medium transition"
+              :class="isGapSkillSelected(skill) ? 'border-red-500 bg-red-600 text-white shadow-sm shadow-red-200' : 'border-red-200 bg-white text-red-800 hover:border-red-400 hover:bg-red-100'"
+              @click="toggleGapSkill(skill)"
+            >
+              <i :class="['pi mr-1 text-xs', isGapSkillSelected(skill) ? 'pi-check' : 'pi-times-circle']" />
+              {{ skill }}
+            </button>
+            <span v-if="!candidateMissingSkillOptions(selectedOpportunity).length" class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-sm font-medium text-emerald-700">
+              <i class="pi pi-check-circle mr-1 text-xs" />
+              Selected gaps were added to your profile.
+            </span>
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <Button
+              label="Add selected to profile"
+              icon="pi pi-plus-circle"
+              size="small"
+              severity="danger"
+              :disabled="selectedGapSkills.length === 0"
+              :loading="updatingProfileSkills"
+              @click="addSelectedGapsToProfile(selectedOpportunity)"
+            />
+            <Button
+              v-if="profileSkillsUpdatedForOpportunityId === selectedOpportunity.id"
+              label="Re-evaluate now"
+              icon="pi pi-refresh"
+              size="small"
+              :loading="evaluatingId === selectedOpportunity.id"
+              @click="evaluate(selectedOpportunity, true)"
+            />
+            <span v-if="profileSkillsUpdatedForOpportunityId === selectedOpportunity.id" class="text-sm font-medium text-red-900">
+              Profile updated. Re-evaluation is recommended.
+            </span>
+          </div>
         </div>
 
         <div class="rounded-3xl border border-slate-200 bg-white p-4">
@@ -561,6 +667,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
 import {
+  addOpportunityProfileSkills,
   collectJobsForActivePaths,
   evaluateOpportunity,
   hideOpportunity,
@@ -600,6 +707,8 @@ const collecting = ref(false)
 const evaluatingId = ref<number | null>(null)
 const generatingPackageOpportunityId = ref<number | null>(null)
 const loadingPackageOpportunityId = ref<number | null>(null)
+const updatingProfileSkills = ref(false)
+const profileSkillsUpdatedForOpportunityId = ref<number | null>(null)
 const creatingApplication = ref(false)
 const downloadingResumeId = ref<number | null>(null)
 const errorMessage = ref('')
@@ -610,6 +719,7 @@ const scopeFilter = ref<OpportunityScopeFilter>('default')
 const opportunities = ref<JobOpportunity[]>([])
 const selectedOpportunity = ref<JobOpportunity | null>(null)
 const selectedApplyPackage = ref<ApplyPackage | null>(null)
+const selectedGapSkills = ref<string[]>([])
 const detailsVisible = ref(false)
 const applyPackageVisible = ref(false)
 const packageOptionsVisible = ref(false)
@@ -765,14 +875,21 @@ async function collectJobs(): Promise<void> {
   }
 }
 
-async function evaluate(opportunity: JobOpportunity): Promise<void> {
+async function evaluate(opportunity: JobOpportunity, force = false): Promise<void> {
   evaluatingId.value = opportunity.id
 
   try {
-    const updated = await evaluateOpportunity(opportunity.id)
+    const updated = await evaluateOpportunity(opportunity.id, force)
     replaceOpportunity(updated)
     selectedOpportunity.value = updated
-    toast.add({ severity: 'success', summary: 'Fit evaluated', detail: 'Analysis and match were saved for this opportunity.', life: 4000 })
+    selectedGapSkills.value = candidateMissingSkillOptions(updated)
+    profileSkillsUpdatedForOpportunityId.value = null
+    toast.add({
+      severity: 'success',
+      summary: force ? 'Fit re-evaluated' : 'Fit evaluated',
+      detail: 'Analysis and match were saved for this opportunity.',
+      life: 4000,
+    })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Evaluation failed', detail: getApiErrorMessage(error), life: 5000 })
   } finally {
@@ -950,6 +1067,7 @@ async function restore(opportunity: JobOpportunity): Promise<void> {
 
 function openDetails(opportunity: JobOpportunity): void {
   selectedOpportunity.value = opportunity
+  selectedGapSkills.value = candidateMissingSkillOptions(opportunity)
   detailsVisible.value = true
 }
 
@@ -1005,6 +1123,233 @@ function normalizeScore(value?: number | null): number {
   }
 
   return value <= 1 ? Math.round(value * 100) : Math.round(value)
+}
+
+function opportunityFitReasons(opportunity: JobOpportunity): string[] {
+  if (!isEvaluated(opportunity)) {
+    return opportunity.reasons || []
+  }
+
+  const match = opportunity.match
+
+  if (!match) {
+    return []
+  }
+
+  const reasons: string[] = [
+    ...uniqueList(match.strength_areas).map(formatFitReason),
+  ]
+
+  if (normalizeScore(match.skill_score ?? match.skills_score) >= 75) {
+    reasons.push('Core skills align with the role requirements.')
+  }
+
+  if (normalizeScore(match.seniority_score) >= 75) {
+    reasons.push('Seniority is aligned with your experience.')
+  }
+
+  if (normalizeScore(match.location_score) >= 75) {
+    reasons.push('Location or remote setup matches your preference.')
+  }
+
+  if (reasons.length < 2 && match.why_matched) {
+    reasons.push(...summarySentences(match.why_matched, 2))
+  }
+
+  if (reasons.length < 2 && match.notes) {
+    reasons.push(...summarySentences(match.notes, 2))
+  }
+
+  return uniqueList(reasons)
+}
+
+function opportunityGaps(opportunity: JobOpportunity): string[] {
+  if (!isEvaluated(opportunity)) {
+    return opportunity.missing_keywords || []
+  }
+
+  const match = opportunity.match
+
+  if (!match) {
+    return []
+  }
+
+  return uniqueList([
+    ...uniqueList(match.missing_required_skills, match.missing_skills).map(formatSkillGap),
+    ...uniqueList(match.nice_to_have_gaps).map(formatNiceToHaveGap),
+    ...uniqueList(match.risk_flags),
+  ]).filter((gap) => !profileHasSkill(opportunity, gap))
+}
+
+function candidateMissingSkillOptions(opportunity: JobOpportunity): string[] {
+  const match = opportunity.match
+
+  if (!match) {
+    return []
+  }
+
+  return uniqueList(
+    match.missing_required_skills,
+    match.missing_skills,
+    match.nice_to_have_gaps,
+  ).filter((skill) => !profileHasSkill(opportunity, skill))
+}
+
+function isGapSkillSelected(skill: string): boolean {
+  return selectedGapSkills.value.some((item) => item.toLowerCase() === skill.toLowerCase())
+}
+
+function toggleGapSkill(skill: string): void {
+  if (isGapSkillSelected(skill)) {
+    selectedGapSkills.value = selectedGapSkills.value.filter((item) => item.toLowerCase() !== skill.toLowerCase())
+    return
+  }
+
+  selectedGapSkills.value = [...selectedGapSkills.value, skill]
+}
+
+async function addSelectedGapsToProfile(opportunity: JobOpportunity): Promise<void> {
+  const profileId = profileIdForOpportunity(opportunity)
+
+  if (!profileId) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Profile unavailable',
+      detail: 'This opportunity is not linked to a Career Profile.',
+      life: 4000,
+    })
+    return
+  }
+
+  if (selectedGapSkills.value.length === 0) {
+    return
+  }
+
+  updatingProfileSkills.value = true
+
+  try {
+    const response = await addOpportunityProfileSkills(opportunity.id, selectedGapSkills.value)
+    replaceOpportunity(response.opportunity)
+    selectedOpportunity.value = response.opportunity
+    profileSkillsUpdatedForOpportunityId.value = opportunity.id
+    selectedGapSkills.value = []
+    toast.add({
+      severity: 'success',
+      summary: 'Profile updated',
+      detail: 'Selected skills were added. Re-evaluate this opportunity to refresh the score.',
+      life: 5000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Could not update profile',
+      detail: getApiErrorMessage(error, 'Failed to add skills to your profile.'),
+      life: 5000,
+    })
+  } finally {
+    updatingProfileSkills.value = false
+  }
+}
+
+function profileIdForOpportunity(opportunity: JobOpportunity): number | null {
+  return opportunity.career_profile_id
+    ?? opportunity.match?.candidate_profile_id
+    ?? opportunity.match?.profile_id
+    ?? null
+}
+
+function profileHasSkill(opportunity: JobOpportunity, skill: string): boolean {
+  return [
+    ...(opportunity.career_profile?.core_skills || []),
+    ...(opportunity.career_profile?.nice_to_have_skills || []),
+  ].some((item) => item.toLowerCase() === skill.toLowerCase())
+}
+
+function opportunityFocusPoints(opportunity: JobOpportunity): string[] {
+  const match = opportunity.match
+  const focusPoints = uniqueList(match?.resume_focus_points)
+
+  if (focusPoints.length > 0) {
+    return focusPoints
+  }
+
+  if (isFitOpportunity(opportunity)) {
+    return ['Create an apply package and emphasize the strongest matched skills in your CV and cover letter.']
+  }
+
+  if (isLowFitOpportunity(opportunity)) {
+    return ['Review the gaps before continuing. If you still want to apply, create a package with the low-fit warning in mind.']
+  }
+
+  return []
+}
+
+function formatFitReason(value: string): string {
+  const text = value.trim()
+
+  if (isSentenceLike(text) || /match|align|strong|experience|background|preference/i.test(text)) {
+    return ensureSentence(text)
+  }
+
+  return `Matches your ${text} background.`
+}
+
+function formatSkillGap(value: string): string {
+  const text = value.trim()
+
+  if (isSentenceLike(text)) {
+    return ensureSentence(text)
+  }
+
+  return text
+}
+
+function formatNiceToHaveGap(value: string): string {
+  const text = value.trim()
+
+  if (isSentenceLike(text)) {
+    return ensureSentence(text)
+  }
+
+  return `${text} appears as a nice-to-have gap.`
+}
+
+function summarySentences(value: string, limit = 2): string[] {
+  return value
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, limit)
+    .map(ensureSentence)
+}
+
+function uniqueList(...groups: Array<string[] | null | undefined>): string[] {
+  const seen = new Set<string>()
+  const values: string[] = []
+
+  for (const group of groups) {
+    for (const raw of group || []) {
+      const value = raw.trim()
+      const key = value.toLowerCase()
+
+      if (!value || seen.has(key)) {
+        continue
+      }
+
+      seen.add(key)
+      values.push(value)
+    }
+  }
+
+  return values
+}
+
+function isSentenceLike(value: string): boolean {
+  return /[.!?]$/.test(value) || value.trim().split(/\s+/).length > 5
+}
+
+function ensureSentence(value: string): string {
+  return /[.!?]$/.test(value) ? value : `${value}.`
 }
 
 function applyPackageActionLabel(opportunity: JobOpportunity): string {

@@ -52,6 +52,8 @@ class JobOpportunityResource extends JsonResource
                 'id' => $this->careerProfile?->id,
                 'full_name' => $this->careerProfile?->full_name,
                 'headline' => $this->careerProfile?->headline,
+                'core_skills' => $this->careerProfile?->core_skills ?? [],
+                'nice_to_have_skills' => $this->careerProfile?->nice_to_have_skills ?? [],
             ]),
             'match' => new JobMatchResource($this->whenLoaded('match')),
             'apply_package_id' => $applyPackage?->id,

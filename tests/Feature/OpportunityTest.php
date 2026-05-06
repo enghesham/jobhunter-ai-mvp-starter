@@ -347,6 +347,57 @@ class OpportunityTest extends TestCase
             ->assertJsonPath('data.0.status', 'not_relevant');
     }
 
+    public function test_user_can_add_missing_opportunity_skills_to_linked_profile(): void
+    {
+        [$user, $profile, $path] = $this->seedProfileAndPath();
+        $job = $this->createJob($user, 'Senior Laravel Kubernetes Engineer', 'Laravel, Kubernetes, AWS, and platform engineering.');
+        $match = JobMatch::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'profile_id' => $profile->id,
+            'job_path_id' => $path->id,
+            'context_key' => "path:{$path->id}",
+            'overall_score' => 68,
+            'title_score' => 70,
+            'skill_score' => 62,
+            'missing_required_skills' => ['Kubernetes'],
+            'nice_to_have_gaps' => ['Terraform'],
+            'recommendation' => 'Consider',
+            'recommendation_action' => 'consider',
+            'matched_at' => now(),
+        ]);
+        $opportunity = JobOpportunity::query()->create([
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'job_path_id' => $path->id,
+            'career_profile_id' => $profile->id,
+            'match_id' => $match->id,
+            'context_key' => "path:{$path->id}",
+            'quick_relevance_score' => 82,
+            'match_score' => 68,
+            'status' => 'evaluated',
+            'reasons' => ['Matched Laravel.'],
+            'matched_keywords' => ['Laravel'],
+            'missing_keywords' => ['Kubernetes'],
+            'evaluated_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/jobhunter/opportunities/{$opportunity->id}/profile-skills", [
+            'skills' => ['Kubernetes', 'Terraform'],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.added_core_skills.0', 'Kubernetes')
+            ->assertJsonPath('data.added_nice_to_have_skills.0', 'Terraform')
+            ->assertJsonPath('data.opportunity.career_profile.core_skills.4', 'Kubernetes')
+            ->assertJsonPath('data.opportunity.career_profile.nice_to_have_skills.2', 'Terraform');
+
+        $profile->refresh();
+        $this->assertContains('Kubernetes', $profile->core_skills);
+        $this->assertContains('Terraform', $profile->nice_to_have_skills);
+    }
+
     /**
      * @return array{0: User, 1: CandidateProfile, 2: JobPath}
      */

@@ -4,6 +4,7 @@ namespace App\Modules\Copilot\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Copilot\Domain\Models\JobOpportunity;
+use App\Modules\Copilot\Http\Requests\AddOpportunityProfileSkillsRequest;
 use App\Modules\Copilot\Http\Resources\JobOpportunityResource;
 use App\Services\Copilot\OpportunityService;
 use App\Support\ApiResponse;
@@ -50,6 +51,35 @@ class JobOpportunityController extends Controller
         }
 
         return ApiResponse::success(new JobOpportunityResource($opportunity));
+    }
+
+    public function addProfileSkills(
+        AddOpportunityProfileSkillsRequest $request,
+        JobOpportunity $opportunity,
+        OpportunityService $opportunityService,
+    ): JsonResponse {
+        try {
+            $result = $opportunityService->addMissingSkillsToProfile(
+                $request->user(),
+                $opportunity,
+                $request->validated('skills'),
+            );
+        } catch (Throwable $exception) {
+            return ApiResponse::error($exception->getMessage(), 422);
+        }
+
+        return ApiResponse::success([
+            'opportunity' => new JobOpportunityResource($result['opportunity']),
+            'profile' => [
+                'id' => $result['profile']->id,
+                'full_name' => $result['profile']->full_name,
+                'headline' => $result['profile']->headline,
+                'core_skills' => $result['profile']->core_skills ?? [],
+                'nice_to_have_skills' => $result['profile']->nice_to_have_skills ?? [],
+            ],
+            'added_core_skills' => $result['added_core_skills'],
+            'added_nice_to_have_skills' => $result['added_nice_to_have_skills'],
+        ]);
     }
 
     public function hide(Request $request, JobOpportunity $opportunity, OpportunityService $opportunityService): JsonResponse

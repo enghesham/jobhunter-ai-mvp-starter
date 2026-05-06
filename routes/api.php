@@ -32,6 +32,7 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::get('opportunities', [JobOpportunityController::class, 'index']);
     Route::post('opportunities/refresh', [JobOpportunityController::class, 'refresh']);
     Route::post('opportunities/{opportunity}/evaluate', [JobOpportunityController::class, 'evaluate'])->middleware('throttle:ai-heavy');
+    Route::post('opportunities/{opportunity}/profile-skills', [JobOpportunityController::class, 'addProfileSkills']);
     Route::post('opportunities/{opportunity}/hide', [JobOpportunityController::class, 'hide']);
     Route::post('opportunities/{opportunity}/restore', [JobOpportunityController::class, 'restore']);
     Route::get('opportunity-preferences', [OpportunityPreferenceController::class, 'show']);

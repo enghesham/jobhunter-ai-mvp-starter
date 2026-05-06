@@ -166,6 +166,71 @@ class OpportunityService
         return $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']);
     }
 
+    /**
+     * @param array<int, string> $skills
+     *
+     * @return array{opportunity: JobOpportunity, profile: CandidateProfile, added_core_skills: array<int, string>, added_nice_to_have_skills: array<int, string>}
+     */
+    public function addMissingSkillsToProfile(User $user, JobOpportunity $opportunity, array $skills): array
+    {
+        if ((int) $opportunity->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $opportunity->loadMissing(['jobPath.careerProfile', 'careerProfile', 'match']);
+        $profile = $opportunity->careerProfile
+            ?: $opportunity->jobPath?->careerProfile
+            ?: $this->primaryProfile($user);
+
+        if (! $profile || (int) $profile->user_id !== (int) $user->id) {
+            throw ValidationException::withMessages([
+                'career_profile' => 'Create or select a Career Profile before updating profile skills.',
+            ]);
+        }
+
+        $coreSkills = $this->uniqueStrings($profile->core_skills ?? []);
+        $niceToHaveSkills = $this->uniqueStrings($profile->nice_to_have_skills ?? []);
+        $niceToHaveGaps = $this->lowercaseLookup($opportunity->match?->nice_to_have_gaps ?? []);
+        $addedCoreSkills = [];
+        $addedNiceToHaveSkills = [];
+
+        foreach ($this->uniqueStrings($skills) as $skill) {
+            if ($this->containsSkill($coreSkills, $skill) || $this->containsSkill($niceToHaveSkills, $skill)) {
+                continue;
+            }
+
+            if (isset($niceToHaveGaps[mb_strtolower($skill)])) {
+                $niceToHaveSkills[] = $skill;
+                $addedNiceToHaveSkills[] = $skill;
+            } else {
+                $coreSkills[] = $skill;
+                $addedCoreSkills[] = $skill;
+            }
+        }
+
+        $metadata = $profile->metadata ?? [];
+        $metadata['opportunity_skill_updates'][] = [
+            'opportunity_id' => $opportunity->id,
+            'job_id' => $opportunity->job_id,
+            'job_path_id' => $opportunity->job_path_id,
+            'skills' => array_values(array_merge($addedCoreSkills, $addedNiceToHaveSkills)),
+            'updated_at' => now()->toISOString(),
+        ];
+
+        $profile->forceFill([
+            'core_skills' => $coreSkills,
+            'nice_to_have_skills' => $niceToHaveSkills,
+            'metadata' => $metadata,
+        ])->save();
+
+        return [
+            'opportunity' => $opportunity->fresh(['job.source', 'jobPath', 'careerProfile', 'match.profile', 'match.jobPath', 'applyPackages']),
+            'profile' => $profile->fresh(['experiences', 'projects']),
+            'added_core_skills' => $addedCoreSkills,
+            'added_nice_to_have_skills' => $addedNiceToHaveSkills,
+        ];
+    }
+
     public function hide(User $user, JobOpportunity $opportunity, ?string $reason = null): JobOpportunity
     {
         if ((int) $opportunity->user_id !== (int) $user->id) {
@@ -274,6 +339,67 @@ class OpportunityService
     private function quickScore(Job $job, ?JobPath $path, ?CandidateProfile $profile): array
     {
         return $this->relevanceScorer->score($job, $path, $profile);
+    }
+
+    /**
+     * @param array<int, mixed> $values
+     *
+     * @return array<int, string>
+     */
+    private function uniqueStrings(array $values): array
+    {
+        $seen = [];
+        $items = [];
+
+        foreach ($values as $value) {
+            $item = trim((string) $value);
+            $key = mb_strtolower($item);
+
+            if ($item === '' || isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $items[] = $item;
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param array<int, string> $values
+     *
+     * @return array<string, true>
+     */
+    private function lowercaseLookup(array $values): array
+    {
+        $lookup = [];
+
+        foreach ($values as $value) {
+            $item = trim((string) $value);
+
+            if ($item !== '') {
+                $lookup[mb_strtolower($item)] = true;
+            }
+        }
+
+        return $lookup;
+    }
+
+    /**
+     * @param array<int, string> $skills
+     */
+    private function containsSkill(array $skills, string $skill): bool
+    {
+        $needle = mb_strtolower($skill);
+
+        foreach ($skills as $item) {
+            if (mb_strtolower($item) === $needle) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function primaryProfile(User $user): ?CandidateProfile

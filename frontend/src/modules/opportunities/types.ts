@@ -40,6 +40,8 @@ export interface JobOpportunity {
     id?: number
     full_name?: string | null
     headline?: string | null
+    core_skills?: string[]
+    nice_to_have_skills?: string[]
   } | null
   match?: JobMatch | null
   created_at?: string | null
@@ -79,4 +81,17 @@ export interface JobCollectionResponse {
   queued: number
   processed: number
   runs?: JobCollectionRun[]
+}
+
+export interface OpportunityProfileSkillsResponse {
+  opportunity: JobOpportunity
+  profile: {
+    id: number
+    full_name?: string | null
+    headline?: string | null
+    core_skills: string[]
+    nice_to_have_skills: string[]
+  }
+  added_core_skills: string[]
+  added_nice_to_have_skills: string[]
 }
