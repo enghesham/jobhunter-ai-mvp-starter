@@ -11,6 +11,7 @@ use App\Modules\Copilot\Http\Controllers\JobCollectionController;
 use App\Modules\Copilot\Http\Controllers\JobOpportunityController;
 use App\Modules\Copilot\Http\Controllers\JobPathController;
 use App\Modules\Copilot\Http\Controllers\OnboardingController;
+use App\Modules\Copilot\Http\Controllers\OpportunityPreferenceController;
 use App\Modules\Jobs\Http\Controllers\JobController;
 use App\Modules\Jobs\Http\Controllers\JobSourceController;
 use App\Modules\Matching\Http\Controllers\JobMatchController;
@@ -33,6 +34,8 @@ Route::prefix('jobhunter')->middleware('auth:sanctum')->name('jobhunter.')->grou
     Route::post('opportunities/{opportunity}/evaluate', [JobOpportunityController::class, 'evaluate'])->middleware('throttle:ai-heavy');
     Route::post('opportunities/{opportunity}/hide', [JobOpportunityController::class, 'hide']);
     Route::post('opportunities/{opportunity}/restore', [JobOpportunityController::class, 'restore']);
+    Route::get('opportunity-preferences', [OpportunityPreferenceController::class, 'show']);
+    Route::patch('opportunity-preferences', [OpportunityPreferenceController::class, 'update']);
     Route::get('job-collection/runs', [JobCollectionController::class, 'runs']);
     Route::post('job-collection/collect-due', [JobCollectionController::class, 'collectDue']);
     Route::get('onboarding', [OnboardingController::class, 'show']);

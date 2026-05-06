@@ -19,6 +19,8 @@ const OpportunitiesPage = () => import('@/modules/opportunities/pages/Opportunit
 const RegisterPage = () => import('@/modules/auth/pages/RegisterPage.vue')
 const ResumesPage = () => import('@/modules/resumes/pages/ResumesPage.vue')
 const SettingsPage = () => import('@/modules/settings/SettingsPage.vue')
+const AnswerTemplatesPage = () => import('@/modules/settings/pages/AnswerTemplatesPage.vue')
+const OpportunityControlsPage = () => import('@/modules/settings/pages/OpportunityControlsPage.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -40,6 +42,8 @@ const router = createRouter({
         { path: 'resumes', component: ResumesPage, meta: { title: 'Resumes' } },
         { path: 'applications', component: ApplicationsPage, meta: { title: 'Applications' } },
         { path: 'settings', component: SettingsPage, meta: { title: 'Settings' } },
+        { path: 'settings/opportunity-controls', component: OpportunityControlsPage, meta: { title: 'Opportunity Controls' } },
+        { path: 'settings/answer-templates', component: AnswerTemplatesPage, meta: { title: 'Answer Templates' } },
         { path: 'developer/ai-quality', component: AiQualityPage, meta: { title: 'AI Quality' } },
       ],
     },

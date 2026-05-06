@@ -16,8 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class OpportunityService
 {
-    public function __construct(private readonly JobPathRelevanceScorer $relevanceScorer)
-    {
+    public function __construct(
+        private readonly JobPathRelevanceScorer $relevanceScorer,
+        private readonly OpportunityPreferenceService $preferences,
+    ) {
     }
 
     /**
@@ -36,15 +38,20 @@ class OpportunityService
                 'applyPackages' => fn ($query) => $query->where('user_id', $user->id),
             ]);
 
-        if (! (bool) ($filters['include_hidden'] ?? false)) {
-            $query
-                ->where('status', '!=', 'hidden')
-                ->where(function ($query): void {
-                    $query
-                        ->where('status', '!=', 'not_relevant')
-                        ->orWhereNotNull('match_id')
-                        ->orWhereNotNull('evaluated_at');
-                });
+        $includeHidden = (bool) ($filters['include_hidden'] ?? false);
+        $showBelowThreshold = $includeHidden || $this->preferences->shouldShowBelowThreshold($user);
+
+        if (! $includeHidden) {
+            $query->where('status', '!=', 'hidden');
+        }
+
+        if (! $showBelowThreshold) {
+            $query->where(function ($query): void {
+                $query
+                    ->where('status', '!=', 'not_relevant')
+                    ->orWhereNotNull('match_id')
+                    ->orWhereNotNull('evaluated_at');
+            });
         }
 
         if (! empty($filters['job_path_id'])) {
@@ -146,7 +153,7 @@ class OpportunityService
                 'career_profile_id' => $profile->id,
                 'match_id' => $match->id,
                 'match_score' => $match->overall_score,
-                'status' => $this->statusFromMatch($match),
+                'status' => $this->statusFromMatch($user, $match, $opportunity->jobPath),
                 'recommendation' => $match->recommendation_action ?: $match->recommendation,
                 'evaluated_at' => now(),
             ])->save();
@@ -212,13 +219,14 @@ class OpportunityService
     private function storeOpportunity(User $user, Job $job, ?JobPath $path, ?CandidateProfile $profile, array &$stats): void
     {
         $score = $this->quickScore($job, $path, $profile);
-        $minimum = (int) ($path?->min_relevance_score ?? config('jobhunter.opportunities.default_min_relevance_score', 45));
-        $storeBelowThreshold = (bool) config('jobhunter.opportunities.store_below_threshold', false);
+        $minimum = $this->preferences->minRelevanceScore($user, $path);
+        $recommendedThreshold = $this->preferences->quickRecommendedScore($user, $path);
+        $storeBelowThreshold = $this->preferences->shouldStoreBelowThreshold($user);
 
         $contextKey = $path ? "path:{$path->id}" : 'primary';
         $status = $score['score'] < $minimum
             ? 'not_relevant'
-            : ($score['score'] >= max(75, $minimum) ? 'recommended' : 'needs_review');
+            : ($score['score'] >= $recommendedThreshold ? 'recommended' : 'needs_review');
 
         $opportunity = JobOpportunity::query()->firstOrNew([
             'user_id' => $user->id,
@@ -310,9 +318,13 @@ class OpportunityService
         return $count;
     }
 
-    private function statusFromMatch(JobMatch $match): string
+    private function statusFromMatch(User $user, JobMatch $match, ?JobPath $path): string
     {
-        if ($match->recommendation_action === 'apply' || (int) $match->overall_score >= (int) config('jobhunter.match_threshold', 75)) {
+        if ($match->recommendation_action === 'skip') {
+            return 'evaluated';
+        }
+
+        if ($match->recommendation_action === 'apply' || (int) $match->overall_score >= $this->preferences->minMatchScore($user, $path)) {
             return 'recommended';
         }
 

@@ -17,6 +17,11 @@ export interface JobOpportunity {
   reasons: string[]
   matched_keywords: string[]
   missing_keywords: string[]
+  thresholds?: {
+    min_relevance_score: number
+    min_match_score: number
+    quick_recommended_score: number
+  } | null
   hidden_at?: string | null
   hidden_reason?: string | null
   evaluated_at?: string | null

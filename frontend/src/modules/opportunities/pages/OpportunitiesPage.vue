@@ -992,7 +992,7 @@ function hasApplyPackage(opportunity: JobOpportunity): boolean {
 }
 
 function matchThreshold(opportunity: JobOpportunity): number {
-  return opportunity.job_path?.min_match_score ?? 75
+  return opportunity.thresholds?.min_match_score ?? opportunity.job_path?.min_match_score ?? 75
 }
 
 function evaluatedMatchScore(opportunity: JobOpportunity): number {

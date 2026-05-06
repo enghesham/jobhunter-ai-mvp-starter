@@ -8,6 +8,7 @@ use App\Modules\Copilot\Domain\Models\JobCollectionRun;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Services\Copilot\OpportunityService;
+use App\Services\Copilot\OpportunityPreferenceService;
 use App\Services\JobIngestion\JobSourceFetcherRegistry;
 use App\Services\JobIngestion\JobUpsertService;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,6 +22,7 @@ class JobPathCollectionService
         private readonly JobUpsertService $upserts,
         private readonly JobPathRelevanceScorer $relevanceScorer,
         private readonly OpportunityService $opportunities,
+        private readonly OpportunityPreferenceService $preferences,
     ) {
     }
 
@@ -224,12 +226,12 @@ class JobPathCollectionService
 
     private function shouldStore(int $score, JobPath $jobPath): bool
     {
-        if ((bool) config('jobhunter.collection.store_below_threshold', false)) {
+        if ($this->preferences->shouldStoreBelowThreshold($jobPath->user)) {
             return true;
         }
 
         $collectionThreshold = min(
-            (int) $jobPath->min_relevance_score,
+            $this->preferences->minRelevanceScore($jobPath->user, $jobPath),
             (int) config('jobhunter.collection.max_accept_threshold', 55),
         );
 

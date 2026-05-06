@@ -181,6 +181,7 @@ interface SidebarItem {
   badgeTone?: string
   help?: string
   availableDuringOnboarding?: boolean
+  exact?: boolean
 }
 
 interface SidebarSection {
@@ -226,7 +227,11 @@ const navSections: SidebarSection[] = [
   },
   {
     label: 'Settings',
-    items: [{ label: 'Settings', to: '/settings', icon: 'pi-cog' }],
+    items: [
+      { label: 'Settings Home', to: '/settings', icon: 'pi-cog', exact: true },
+      { label: 'Opportunity Controls', to: '/settings/opportunity-controls', icon: 'pi-sliders-h' },
+      { label: 'Answer Templates', to: '/settings/answer-templates', icon: 'pi-file-edit' },
+    ],
   },
   {
     label: 'Developer',
@@ -295,6 +300,12 @@ async function handleLogout(): Promise<void> {
 }
 
 function isActiveRoute(target: string): boolean {
+  const item = navSections.flatMap((section) => section.items).find((navItem) => navItem.to === target)
+
+  if (item?.exact) {
+    return route.path === target
+  }
+
   return route.path === target || route.path.startsWith(`${target}/`)
 }
 

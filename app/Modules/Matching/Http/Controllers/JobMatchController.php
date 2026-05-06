@@ -5,20 +5,21 @@ namespace App\Modules\Matching\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Jobs\Http\Resources\JobMatchResource;
 use App\Modules\Matching\Domain\Models\JobMatch;
+use App\Services\Copilot\OpportunityPreferenceService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class JobMatchController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, OpportunityPreferenceService $preferences): JsonResponse
     {
         $query = JobMatch::query()
             ->where('user_id', auth()->id())
             ->with(['job', 'profile', 'jobPath']);
 
         if ($request->boolean('best_only')) {
-            $defaultThreshold = (int) config('jobhunter.match_threshold', 75);
+            $defaultThreshold = $preferences->minMatchScore($request->user());
 
             $query
                 ->whereNotNull('matched_at')

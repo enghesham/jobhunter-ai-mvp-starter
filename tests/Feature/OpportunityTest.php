@@ -290,6 +290,63 @@ class OpportunityTest extends TestCase
             ->assertJsonPath('data.0.apply_package.status', 'ready');
     }
 
+    public function test_user_can_update_opportunity_preferences_and_apply_to_existing_paths(): void
+    {
+        [$user, , $path] = $this->seedProfileAndPath();
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/jobhunter/opportunity-preferences', [
+            'default_min_relevance_score' => 58,
+            'default_min_match_score' => 82,
+            'quick_recommended_score' => 86,
+            'store_below_threshold' => true,
+            'show_below_threshold' => true,
+            'apply_to_existing_job_paths' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.effective.default_min_relevance_score', 58)
+            ->assertJsonPath('data.effective.default_min_match_score', 82)
+            ->assertJsonPath('data.effective.quick_recommended_score', 86)
+            ->assertJsonPath('data.effective.store_below_threshold', true)
+            ->assertJsonPath('data.effective.show_below_threshold', true);
+
+        $this->assertDatabaseHas('user_opportunity_preferences', [
+            'user_id' => $user->id,
+            'default_min_relevance_score' => 58,
+            'default_min_match_score' => 82,
+            'quick_recommended_score' => 86,
+        ]);
+
+        $path->refresh();
+        $this->assertSame(58, $path->min_relevance_score);
+        $this->assertSame(82, $path->min_match_score);
+    }
+
+    public function test_opportunity_preferences_can_store_and_show_low_relevance_jobs(): void
+    {
+        [$user, , $path] = $this->seedProfileAndPath();
+        $path->forceFill(['min_relevance_score' => 100])->save();
+        $this->createJob($user, 'Junior PHP Support Developer', 'Support PHP tickets and maintain basic internal tools.');
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/jobhunter/opportunity-preferences', [
+            'store_below_threshold' => true,
+            'show_below_threshold' => true,
+        ])->assertOk();
+
+        $this->postJson('/api/jobhunter/opportunities/refresh')
+            ->assertOk()
+            ->assertJsonPath('data.stats.created', 1)
+            ->assertJsonPath('data.opportunities.0.status', 'not_relevant');
+
+        $this->getJson('/api/jobhunter/opportunities')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.status', 'not_relevant');
+    }
+
     /**
      * @return array{0: User, 1: CandidateProfile, 2: JobPath}
      */

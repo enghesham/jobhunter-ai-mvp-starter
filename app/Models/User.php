@@ -9,6 +9,7 @@ use App\Modules\Candidate\Domain\Models\CandidateProfile;
 use App\Modules\Copilot\Domain\Models\JobCollectionRun;
 use App\Modules\Copilot\Domain\Models\JobPath;
 use App\Modules\Copilot\Domain\Models\UserOnboardingState;
+use App\Modules\Copilot\Domain\Models\UserOpportunityPreference;
 use App\Modules\Jobs\Domain\Models\Job;
 use App\Modules\Jobs\Domain\Models\JobSource;
 use App\Modules\Matching\Domain\Models\JobMatch;
@@ -85,5 +86,10 @@ class User extends Authenticatable
     public function onboardingState(): HasOne
     {
         return $this->hasOne(UserOnboardingState::class);
+    }
+
+    public function opportunityPreference(): HasOne
+    {
+        return $this->hasOne(UserOpportunityPreference::class);
     }
 }

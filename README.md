@@ -490,6 +490,8 @@ Accept: application/json
 - `POST /api/jobhunter/opportunities/{id}/evaluate`
 - `POST /api/jobhunter/opportunities/{id}/hide`
 - `POST /api/jobhunter/opportunities/{id}/restore`
+- `GET /api/jobhunter/opportunity-preferences`
+- `PATCH /api/jobhunter/opportunity-preferences`
 - `GET /api/jobhunter/job-collection/runs`
 - `POST /api/jobhunter/job-collection/collect-due`
 - `GET|POST|PUT|PATCH|DELETE /api/jobhunter/job-sources`
@@ -621,6 +623,9 @@ VITE_API_BASE_URL=http://127.0.0.1:8000/api
 - `/jobs` - legacy/admin job list and direct job actions
 - `/candidate-profile` - compatibility screen for candidate profiles
 - `/resumes` - generated resume history and previews
+- `/settings` - settings landing page
+- `/settings/opportunity-controls` - thresholds and weak-job visibility controls
+- `/settings/answer-templates` - reusable answer templates for apply packages
 - `/developer/ai-quality` - AI quality and fallback dashboard
 
 ## AI Configuration
@@ -709,6 +714,19 @@ The default policy is user-controlled evaluation:
 - `Evaluate Fit` runs job analysis and matching
 - low-fit evaluated jobs can still be continued manually if the user wants
 - Best Matches only shows evaluated jobs that pass the configured match threshold
+
+### Opportunity Controls
+
+Users can tune opportunity behavior from `/settings`:
+
+- minimum relevance score before a collected job becomes an Opportunity
+- best match threshold after `Evaluate Fit`
+- quick recommended threshold before evaluation
+- whether weak jobs below the threshold should be stored
+- whether weak jobs should appear in the default Opportunities list
+- whether new values should be applied to existing Job Paths
+
+If a user does not save custom values, the system uses the environment/config defaults. Job Path-specific thresholds still take precedence unless the user applies settings to existing paths.
 
 Safe source types:
 

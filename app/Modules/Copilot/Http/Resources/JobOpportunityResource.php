@@ -4,6 +4,7 @@ namespace App\Modules\Copilot\Http\Resources;
 
 use App\Modules\Jobs\Http\Resources\JobMatchResource;
 use App\Modules\Jobs\Http\Resources\JobResource;
+use App\Services\Copilot\OpportunityPreferenceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,13 @@ class JobOpportunityResource extends JsonResource
     public function toArray(Request $request): array
     {
         $applyPackage = $this->applyPackageForOpportunity();
+        $preferences = app(OpportunityPreferenceService::class);
+        $user = $request->user();
+        $thresholds = $user ? [
+            'min_relevance_score' => $preferences->minRelevanceScore($user, $this->jobPath),
+            'min_match_score' => $preferences->minMatchScore($user, $this->jobPath),
+            'quick_recommended_score' => $preferences->quickRecommendedScore($user, $this->jobPath),
+        ] : null;
 
         return [
             'id' => $this->id,
@@ -29,6 +37,7 @@ class JobOpportunityResource extends JsonResource
             'reasons' => $this->reasons ?? [],
             'matched_keywords' => $this->matched_keywords ?? [],
             'missing_keywords' => $this->missing_keywords ?? [],
+            'thresholds' => $thresholds,
             'hidden_at' => $this->hidden_at?->toISOString(),
             'hidden_reason' => $this->hidden_reason,
             'evaluated_at' => $this->evaluated_at?->toISOString(),

@@ -14,6 +14,7 @@ return [
     'opportunities' => [
         'max_jobs_per_refresh' => (int) env('JOBHUNTER_OPPORTUNITY_MAX_JOBS_PER_REFRESH', 200),
         'default_min_relevance_score' => (int) env('JOBHUNTER_OPPORTUNITY_MIN_RELEVANCE_SCORE', 45),
+        'quick_recommended_score' => (int) env('JOBHUNTER_OPPORTUNITY_QUICK_RECOMMENDED_SCORE', env('JOBHUNTER_MATCH_THRESHOLD', 75)),
         'store_below_threshold' => filter_var(env('JOBHUNTER_OPPORTUNITY_STORE_BELOW_THRESHOLD', false), FILTER_VALIDATE_BOOL),
         'auto_ai_evaluation_enabled' => filter_var(env('JOBHUNTER_OPPORTUNITY_AUTO_AI_EVALUATION_ENABLED', false), FILTER_VALIDATE_BOOL),
         'max_ai_evaluations_per_refresh' => (int) env('JOBHUNTER_OPPORTUNITY_MAX_AI_EVALUATIONS_PER_REFRESH', 0),
